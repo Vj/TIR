@@ -18,16 +18,22 @@ class DeepLinkRuntimeEngine:
         self.adb_path = adb_path
 
     def invoke(self, uri: str, targets: List[Dict[str, Any]]) -> Finding:
-        if not SAFE_URI.fullmatch(uri) or any(c in uri for c in ('"', "\\", "`", "\n", "\r")):
+        if not isinstance(uri, str) or not SAFE_URI.fullmatch(uri) or any(ch in uri for ch in ('"', "\\", "`", "\n", "\r")):
             return self._finding(uri, False, "URI contains unsupported characters and was not sent to ADB.")
         parsed = urlsplit(uri)
         scheme, host = parsed.scheme.lower(), (parsed.hostname or "").lower()
-        allowed = any(
-            target.get("scheme", "").lower() == scheme
-            and (not target.get("hosts") or host in [item.lower() for item in target.get("hosts", [])])
-            and target.get("exported") is True
-            for target in targets
-        )
+        allowed = False
+        for target in targets if isinstance(targets, list) else []:
+            if not isinstance(target, dict) or target.get("exported") is not True:
+                continue
+            declared_scheme = target.get("scheme")
+            declared_hosts = target.get("hosts", [])
+            if not isinstance(declared_scheme, str) or not isinstance(declared_hosts, list):
+                continue
+            safe_hosts = [item.lower() for item in declared_hosts if isinstance(item, str)]
+            if declared_scheme.lower() == scheme and (not safe_hosts or host in safe_hosts):
+                allowed = True
+                break
         if not allowed:
             return self._finding(uri, False, "URI scheme/host is not present in the exported static target allow-list.")
 
@@ -38,16 +44,19 @@ class DeepLinkRuntimeEngine:
         try:
             result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8",
                                     errors="replace", timeout=15, check=False)
-            output = (result.stdout or result.stderr or "").strip()
             sent = result.returncode == 0
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            output, sent = str(exc), False
-        # Retain only scheme/host in evidence; query and path may contain secrets.
-        safe_target = f"{scheme}://{host}" if host else scheme + ":"
-        return self._finding(safe_target, sent, output[:300] or "ADB returned no output.")
+            output = f"ADB exit code: {result.returncode}; " + ("launch accepted" if sent else "launch rejected")
+        except (OSError, subprocess.TimeoutExpired):
+            output, sent = "ADB invocation failed or timed out.", False
+        return self._finding(uri, sent, output)
 
     @staticmethod
     def _finding(target: str, sent: bool, detail: str) -> Finding:
+        try:
+            parsed = urlsplit(target)
+            safe_target = f"{parsed.scheme}://{parsed.hostname}" if parsed.hostname else f"{parsed.scheme}:"
+        except ValueError:
+            safe_target = "[invalid URI]"
         return Finding(
             check_id="TIR-DEEPLINK-RUNTIME",
             title="Manifest-seeded deep-link invocation",
@@ -59,7 +68,7 @@ class DeepLinkRuntimeEngine:
             confidence=Confidence.LOW,
             confidence_score=0.35,
             description="TIR attempted an analyst-supplied URI only when its scheme and host matched an explicitly exported static target. Invocation success alone does not prove an input-validation weakness.",
-            evidence=f"Target: {target}\nInvocation sent: {sent}\nADB result: {detail}",
+            evidence=f"Target: {safe_target}\nInvocation sent: {sent}\nADB result: {detail}",
             remediation="Verify handler validation, caller assumptions, and downstream use of URI data.",
             coverage={"probe": "analyst-supplied manifest-seeded URI"},
         )
