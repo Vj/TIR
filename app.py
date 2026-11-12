@@ -15,6 +15,7 @@ from engines.dynamic.runtime_behavior_engine import RuntimeBehaviorEngine
 from engines.dynamic.component_audit_engine import ComponentAuditEngine
 from engines.dynamic.root_isolation_engine import RootIsolationEngine
 from engines.dynamic.runtime_verification_engine import RuntimeVerificationEngine
+from engines.dynamic.shell_test_engine import ShellTestEngine
 
 def main():
     parser = argparse.ArgumentParser(description="TIR Standalone Mobile Security Scanner")
@@ -187,6 +188,16 @@ def _handle_dynamic_scan(args):
         print(f"[!] Runtime verification notice: {e}")
 
         
+    # 5. Modular read-only device-side shell checks
+    print("[*] Running modular runtime process and package-flag checks...")
+    shell_engine = ShellTestEngine(package_name=args.package, device_id=device_id)
+    try:
+        shell_findings = shell_engine.audit_all()
+        all_dynamic_findings.extend(shell_findings)
+        print(f"[+] Shell checks complete: {len(shell_findings)} result(s).")
+    except Exception as e:
+        print(f"[!] Shell checks notice: {e}")
+
     # 4. Live Logcat Monitoring Session (Tabs 02 & 13)
     print(f"[*] Starting live Logcat monitoring for {args.duration}s...")
     print("[*] Perform user actions on the device now...")
