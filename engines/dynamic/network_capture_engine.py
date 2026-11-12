@@ -28,6 +28,8 @@ class NetworkCaptureEngine:
                     if not line.strip():
                         continue
                     row = json.loads(line)
+                    if not isinstance(row, dict):
+                        continue
                     scheme, host = str(row.get("scheme", "")).lower(), str(row.get("host", "")).lower()
                     if scheme not in {"http", "https"} or not HOST_PATTERN.fullmatch(host):
                         continue
