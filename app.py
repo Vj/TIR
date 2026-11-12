@@ -20,6 +20,7 @@ from engines.dynamic.shell_test_engine import ShellTestEngine
 from engines.dynamic.runtime_coverage_engine import RuntimeCoverageEngine
 from engines.dynamic.frida_tls_observer import FridaTLSObserver
 from engines.dynamic.network_capture_engine import NetworkCaptureEngine
+from engines.dynamic.deeplink_runtime_engine import DeepLinkRuntimeEngine
 from core.correlation import correlate_findings
 from core.standards import enrich_findings
 
@@ -46,6 +47,7 @@ def main():
     dyn_parser.add_argument("--probe-ipc", action="store_true", help="Opt in to manifest-seeded service and read-only Content Provider probes")
     dyn_parser.add_argument("--frida-tls", action="store_true", help="Opt in to attach-only Frida observation of TLS configuration APIs")
     dyn_parser.add_argument("--mitm-flows", help="Optional metadata-only JSONL flow export from scripts/dynamic/mitm_export.py")
+    dyn_parser.add_argument("--deep-link", action="append", default=[], help="Opt-in URI to invoke; must match an explicitly exported static target. May be repeated.")
     dyn_parser.add_argument("--max-ui-actions", type=int, default=12, help="Maximum UI taps when --explore is enabled (1-40)")
 
     args = parser.parse_args()
@@ -213,6 +215,14 @@ def _handle_dynamic_scan(args):
     if frida_observer:
         print("[*] Attaching optional Frida TLS observer...")
         frida_observer.start()
+
+    if args.deep_link:
+        print("[*] Invoking analyst-supplied manifest-seeded deep links...")
+        deep_link_engine = DeepLinkRuntimeEngine(package_name=args.package, device_id=device_id)
+        declared_links = targets_data.get("deep_links", [])
+        all_dynamic_findings.extend(
+            deep_link_engine.invoke(uri, declared_links) for uri in args.deep_link
+        )
 
     # 4. Automated Component Discovery & Resilience Audit (DYN-031, DYN-032)
     print("[*] Auditing exported component launch resilience and parameter parsing...")
