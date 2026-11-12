@@ -5,7 +5,7 @@ import re
 import subprocess
 from typing import Dict, List, Optional, Tuple
 
-from core.models import CheckStatus, Finding, Severity
+from core.models import AnalysisType, CheckStatus, Finding, Severity
 
 
 class ShellTestEngine:
@@ -83,6 +83,7 @@ class ShellTestEngine:
             if error:
                 findings.append(Finding(
                     check_id=check_id,
+                    analysis_type=AnalysisType.DYNAMIC,
                     title=f"Runtime shell check needs review: {filename.removesuffix('.sh')}",
                     category="Dynamic Runtime Analysis",
                     tab_index=8,
@@ -98,6 +99,7 @@ class ShellTestEngine:
             if state == "NOT_RUNNING":
                 findings.append(Finding(
                     check_id=check_id,
+                    analysis_type=AnalysisType.DYNAMIC,
                     title=f"Runtime shell check skipped: {filename.removesuffix('.sh')}",
                     category="Dynamic Runtime Analysis",
                     tab_index=8,
@@ -114,6 +116,7 @@ class ShellTestEngine:
                 if tracer_pid.isdigit() and int(tracer_pid) > 0:
                     findings.append(Finding(
                         check_id=check_id,
+                    analysis_type=AnalysisType.DYNAMIC,
                         title="Target Process Is Being Traced",
                         category="MASVS-RESILIENCE",
                         tab_index=8,
@@ -126,6 +129,7 @@ class ShellTestEngine:
                 else:
                     findings.append(Finding(
                         check_id=check_id,
+                    analysis_type=AnalysisType.DYNAMIC,
                         title="No Active Process Tracer Detected",
                         category="MASVS-RESILIENCE",
                         tab_index=8,
@@ -141,6 +145,7 @@ class ShellTestEngine:
                 is_debuggable = debuggable in {"TRUE", "YES", "1"}
                 findings.append(Finding(
                     check_id=check_id,
+                    analysis_type=AnalysisType.DYNAMIC,
                     title="Runtime Package Debuggable Flag",
                     category="MASVS-CODE",
                     tab_index=7,
