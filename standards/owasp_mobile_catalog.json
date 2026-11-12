@@ -253,6 +253,20 @@
           "status": "current"
         }
       ]
+    },
+    "TIR-DEEPLINK-RUNTIME": {
+      "masvs": [
+        "MASVS-PLATFORM-1"
+      ],
+      "maswe": [
+        "MASWE-0029"
+      ],
+      "mastg": [
+        {
+          "id": "MASTG-TEST-0394",
+          "status": "current"
+        }
+      ]
     }
   }
 }
