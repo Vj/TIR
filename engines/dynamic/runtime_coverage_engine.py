@@ -12,7 +12,9 @@ from core.models import AnalysisType, CheckStatus, Confidence, Finding, Severity
 PACKAGE_PATTERN = re.compile(r"^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+$")
 BOUNDS_PATTERN = re.compile(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]")
 DO_NOT_TAP = ("delete", "remove", "purchase", "pay", "submit", "send", "transfer",
-              "buy", "order", "revoke", "share", "upload", "logout", "confirm")
+              "buy", "order", "revoke", "share", "upload", "logout", "confirm",
+              "save", "reset", "clear", "restore", "activate", "enable", "disable",
+              "allow", "deny", "grant", "permission", "subscribe")
 
 
 class RuntimeCoverageEngine:
@@ -107,7 +109,8 @@ class RuntimeCoverageEngine:
             coverage_error = f"Pre-exploration app sandbox snapshot unavailable: {exc}"
 
         try:
-            self._adb(["monkey", "-p", self.package_name, "1"])
+            self._adb(["am", "start", "-a", "android.intent.action.MAIN", "-c",
+                       "android.intent.category.LAUNCHER", "-p", self.package_name])
             time.sleep(1)
             while actions < max_actions:
                 remote = "/data/local/tmp/tir_ui_state.xml"
