@@ -19,6 +19,7 @@ from engines.dynamic.runtime_verification_engine import RuntimeVerificationEngin
 from engines.dynamic.shell_test_engine import ShellTestEngine
 from engines.dynamic.runtime_coverage_engine import RuntimeCoverageEngine
 from core.correlation import correlate_findings
+from core.standards import enrich_findings
 
 def main():
     parser = argparse.ArgumentParser(description="TIR Standalone Mobile Security Scanner")
@@ -268,7 +269,7 @@ def _handle_dynamic_scan(args):
         item.model_copy(update={"coverage": {**item.coverage, "device": device_id}})
         for item in all_dynamic_findings
     ]
-    all_findings = correlate_findings(static_findings, dynamic_findings) if static_findings else dynamic_findings
+    all_findings = correlate_findings(static_findings, dynamic_findings) if static_findings else enrich_findings(dynamic_findings)
 
     # 5. Consolidate and Render Final Dynamic Report
     session = AuditSession(
