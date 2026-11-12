@@ -1,0 +1,23 @@
+# requirements.txt
+# Core data models and configuration
+pydantic>=2.6.0
+PyYAML>=6.0.1
+pydantic
+jinja2
+lxml
+pyaxmlparser
+cryptography
+weasyprint
+# Static binary and resource parsing
+pyaxmlparser>=0.3.31
+cryptography>=42.0.0
+
+# Dynamic ADB bridge
+pure-python-adb>=0.3.0.dev0
+
+# Document rendering & reporting
+Jinja2>=3.1.3
+weasyprint>=61.0
+
+# Agentic AI & local LLM integration
+ollama>=0.3.0

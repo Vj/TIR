@@ -1,0 +1,52 @@
+category: "MASVS-CODE: Code Quality and Build Configuration"
+tab_index: 7
+rules:
+  - id: "AND-CODE-01"
+    name: "Debuggable Application Flag"
+    execution_mode: "Automated_Static"
+    severity: "Critical"
+    description: "Verify that android:debuggable is explicitly disabled in the manifest."
+    check_type: "manifest_attribute"
+    attribute: "debuggable"
+    expected: false
+
+  - id: "AND-CODE-02"
+    name: "Native Shared Library Hardening"
+    execution_mode: "Automated_Static"
+    severity: "High"
+    description: "Audit ELF binaries (.so) for Stack Canary, PIE, NX stack, and RELRO flags."
+    check_type: "elf_binary_audit"
+    required_mitigations:
+      - "PIE"
+      - "Stack_Canary"
+      - "NX"
+      - "RELRO"
+
+  - id: "AND-CODE-03"
+    name: "Third-Party Library Version Vulnerabilities"
+    execution_mode: "Automated_Static"
+    severity: "Medium"
+    description: "Inventory embedded SDK versions and match against known vulnerable signatures."
+    check_type: "dependency_catalog_match"
+
+  - id: "AND-CODE-04"
+    name: "Unsafe Dynamic Code and Library Loading"
+    execution_mode: "Automated_Static"
+    severity: "High"
+    description: "Detect loading of dex or native libraries from dynamic, external, or writable paths."
+    check_type: "dex_pattern_match"
+    target_apis:
+      - "Ldalvik/system/DexClassLoader;-><init>"
+      - "Ljava/lang/System;->load(Ljava/lang/String;)V"
+
+  - id: "AND-CODE-05"
+    name: "Insecure Native Functions in JNI"
+    execution_mode: "Automated_Static"
+    severity: "Medium"
+    description: "Scan native library symbol tables for deprecated, memory-unsafe C functions."
+    check_type: "elf_unsafe_symbols"
+    prohibited_symbols:
+      - "strcpy"
+      - "strcat"
+      - "sprintf"
+      - "gets"

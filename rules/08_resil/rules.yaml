@@ -1,0 +1,59 @@
+category: "MASVS-RESILIENCE: Anti-Reversing and Anti-Tampering"
+tab_index: 8
+rules:
+  - id: "AND-RESL-01"
+    name: "Root Detection Mechanism"
+    execution_mode: "Automated_Static"
+    severity: "Medium"
+    description: "Verify presence of root detection checks across binary paths, build tags, and packages."
+    check_type: "resilience_signature_scan"
+    indicator_strings:
+      - "/system/app/Superuser.apk"
+      - "/system/xbin/su"
+      - "test-keys"
+      - "com.topjohnwu.magisk"
+
+  - id: "AND-RESL-02"
+    name: "Anti-Debugging Implementation"
+    execution_mode: "Automated_Static"
+    severity: "Low"
+    description: "Verify implementation of debugger detection routines via API or /proc tracing."
+    check_type: "dex_pattern_match"
+    target_apis:
+      - "Landroid/os/Debug;->isDebuggerConnected()Z"
+    target_strings:
+      - "TracerPid"
+
+  - id: "AND-RESL-03"
+    name: "Emulator Detection Implementation"
+    execution_mode: "Automated_Static"
+    severity: "Low"
+    description: "Verify heuristics checking hardware properties for virtualized and emulator environments."
+    check_type: "resilience_signature_scan"
+    indicator_strings:
+      - "goldfish"
+      - "ranchu"
+      - "vbox86"
+      - "generic_x86"
+
+  - id: "AND-RESL-04"
+    name: "Self-Signature Verification"
+    execution_mode: "Automated_Static"
+    severity: "Medium"
+    description: "Check if the app programmatically inspects its own certificate fingerprint to detect tampering."
+    check_type: "dex_pattern_match"
+    target_apis:
+      - "Landroid/content/pm/PackageManager;->GET_SIGNING_CERTIFICATES"
+      - "Landroid/content/pm/PackageManager;->GET_SIGNATURES"
+
+  - id: "AND-RESL-05"
+    name: "Dynamic Hooking and Instrumentation Detection"
+    execution_mode: "Automated_Static"
+    severity: "Low"
+    description: "Verify detection routines checking for Frida ports, artifacts, and runtime memory hooks."
+    check_type: "resilience_signature_scan"
+    indicator_strings:
+      - "frida-gadget"
+      - "frida-server"
+      - "xposed"
+      - "27042"

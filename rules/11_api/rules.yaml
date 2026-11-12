@@ -1,0 +1,41 @@
+category: "Backend API and Server-side Testing"
+tab_index: 11
+rules:
+  - id: "AND-API-01"
+    name: "API Token Passing in URL Query Parameters"
+    execution_mode: "Automated_Static"
+    severity: "High"
+    description: "Detect hardcoded API routes or query parameter builders appending tokens to URLs."
+    check_type: "dex_pattern_match"
+    target_patterns:
+      - "(?i)[?&](token|access_token|auth|bearer)="
+
+  - id: "AND-API-02"
+    name: "Object- and Function-Level Authorization (BOLA/BFLA)"
+    execution_mode: "Manual_Checklist"
+    severity: "Critical"
+    description: "Verify that low-privilege user tokens cannot access administrative or other tenant objects."
+
+  - id: "AND-API-03"
+    name: "Mobile API Rate Limiting"
+    execution_mode: "Manual_Checklist"
+    severity: "Medium"
+    description: "Confirm that critical authentication and OTP endpoints enforce rate limiting."
+
+  - id: "AND-API-04"
+    name: "Backend Injection Defense"
+    execution_mode: "Manual_Checklist"
+    severity: "High"
+    description: "Verify that backend endpoints reject un-sanitized input and do not leak database stack traces."
+
+  - id: "AND-API-05"
+    name: "Shadow, Internal, and Debug Endpoints"
+    execution_mode: "Automated_Static"
+    severity: "Low"
+    description: "Extract endpoints from DEX bytecode and flag non-production, staging, or debug paths."
+    check_type: "endpoint_extractor"
+    suspicious_patterns:
+      - "(?i)/debug/"
+      - "(?i)/internal/"
+      - "(?i)/staging/"
+      - "(?i)/test/"

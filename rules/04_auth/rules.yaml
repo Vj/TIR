@@ -1,0 +1,47 @@
+category: "MASVS-AUTH: Authentication and Session Testing"
+tab_index: 4
+rules:
+  - id: "AND-AUTH-01"
+    name: "Cleartext Transmission of Credentials"
+    execution_mode: "Automated_Static"
+    severity: "Critical"
+    description: "Ensure Network Security Config disallows cleartext HTTP traffic across all domains."
+    check_type: "manifest_network_config"
+
+  - id: "AND-AUTH-02"
+    name: "Insecure Session Token Storage"
+    execution_mode: "Automated_Dynamic"
+    severity: "High"
+    description: "Audit SharedPreferences, local databases, and cache for unencrypted session tokens."
+    check_type: "sandbox_token_scan"
+
+  - id: "AND-AUTH-03"
+    name: "Cryptographic Biometric Verification"
+    execution_mode: "Automated_Static"
+    severity: "High"
+    description: "Verify BiometricPrompt is coupled with a CryptoObject and AndroidKeyStore."
+    check_type: "biometric_crypto_audit"
+
+  - id: "AND-AUTH-04"
+    name: "Client-Enforced Authorization"
+    execution_mode: "Manual_Checklist"
+    severity: "High"
+    description: "Verify whether administrative or role-gated UI elements enforce authorization on backend endpoints."
+
+  - id: "AND-AUTH-05"
+    name: "Root and Environment Integrity Impact"
+    execution_mode: "Manual_Checklist"
+    severity: "Medium"
+    description: "Assess if device compromise invalidates active sessions or cryptographic keys."
+
+  - id: "AND-AUTH-06"
+    name: "Brute-force and Rate Limiting Protection"
+    execution_mode: "Manual_Checklist"
+    severity: "Medium"
+    description: "Verify authentication endpoints enforce lockout or rate limiting on repeated failed attempts."
+
+  - id: "AND-AUTH-07"
+    name: "Server-side Session Invalidation on Logout"
+    execution_mode: "Manual_Checklist"
+    severity: "High"
+    description: "Confirm tokens are revoked server-side upon logout and cannot be replayed."

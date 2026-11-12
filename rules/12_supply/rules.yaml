@@ -1,0 +1,39 @@
+category: "Supply Chain and Third-party SDK Testing"
+tab_index: 12
+rules:
+  - id: "AND-SCSI-01"
+    name: "Third-Party Framework and SDK Inventory"
+    execution_mode: "Automated_Static"
+    severity: "Informational"
+    description: "Build an inventory of all third-party libraries and native binaries included in the APK."
+    check_type: "dependency_inventory"
+
+  - id: "AND-SCSI-02"
+    name: "Vulnerable and End-of-Life SDKs"
+    execution_mode: "Automated_Static"
+    severity: "Medium"
+    description: "Match identified libraries against known security advisories."
+    check_type: "advisory_matcher"
+
+  - id: "AND-SCSI-03"
+    name: "SDK Scope and Permission Creep"
+    execution_mode: "Automated_Static"
+    severity: "Low"
+    description: "Audit third-party SDKs requiring high-privilege device permissions."
+    check_type: "sdk_permission_audit"
+
+  - id: "AND-SCSI-04"
+    name: "APK Code Signing Scheme and Integrity"
+    execution_mode: "Automated_Static"
+    severity: "High"
+    description: "Verify APK is signed with modern v2+ schemes and not signed with a debug certificate."
+    check_type: "signature_scheme_audit"
+
+  - id: "AND-SCSI-05"
+    name: "In-App Update Mechanism Security"
+    execution_mode: "Automated_Static"
+    severity: "High"
+    description: "Ensure dynamic app update routines verify signatures and transport integrity."
+    check_type: "dex_pattern_match"
+    target_apis:
+      - "Lcom/google/android/play/core/appupdate/AppUpdateManager;"

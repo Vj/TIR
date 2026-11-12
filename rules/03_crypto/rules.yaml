@@ -1,0 +1,55 @@
+category: "MASVS-CRYPTO: Cryptography Testing"
+tab_index: 3
+rules:
+  - id: "AND-CRYP-01"
+    name: "Weak Cryptographic Algorithms and Modes"
+    execution_mode: "Automated_Static"
+    severity: "High"
+    description: "Scan DEX bytecode for weak ciphers, hashing algorithms, and ECB mode."
+    check_type: "dex_pattern_match"
+    target_api: "Ljavax/crypto/Cipher;->getInstance(Ljava/lang/String;)"
+    insecure_patterns:
+      - "(?i)DES"
+      - "(?i)DESede"
+      - "(?i)RC4"
+      - "(?i)AES/ECB"
+      - "(?i)RSA/ECB/PKCS1Padding"
+    insecure_hashes:
+      - "Ljava/security/MessageDigest;->getInstance\\(Ljava/lang/String;\\) -> (MD5|SHA-1)"
+
+  - id: "AND-CRYP-02"
+    name: "Hard-coded Cryptographic Keys and IVs"
+    execution_mode: "Automated_Static"
+    severity: "Critical"
+    description: "Detect inline byte arrays, static SecretKeySpec initializations, and hardcoded IVs."
+    check_type: "dex_key_inspector"
+    target_apis:
+      - "Ljavax/crypto/spec/SecretKeySpec;-><init>([BLjava/lang/String;)V"
+      - "Ljavax/crypto/spec/IvParameterSpec;-><init>([B)V"
+
+  - id: "AND-CRYP-03"
+    name: "Hardware-Backed Keystore Usage"
+    execution_mode: "Automated_Static"
+    severity: "Medium"
+    description: "Confirm asymmetric/symmetric keys are stored via AndroidKeyStore provider."
+    check_type: "dex_keystore_audit"
+    required_provider: "AndroidKeyStore"
+    strongbox_flag: "setIsStrongBoxBacked"
+
+  - id: "AND-CRYP-04"
+    name: "Weak Random Number Generation"
+    execution_mode: "Automated_Static"
+    severity: "Medium"
+    description: "Identify predictable pseudo-random number generators used for security operations."
+    check_type: "dex_pattern_match"
+    insecure_classes:
+      - "Ljava/util/Random;"
+      - "Ljava/lang/Math;->random()D"
+    flag_static_seed: true
+
+  - id: "AND-CRYP-05"
+    name: "Custom XOR or Broken Encodings"
+    execution_mode: "Automated_Static"
+    severity: "High"
+    description: "Flag custom XOR loops or homemade obfuscation masquerading as encryption."
+    check_type: "xor_loop_heuristic"

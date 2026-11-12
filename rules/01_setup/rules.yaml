@@ -1,0 +1,52 @@
+category: "Information Gathering and Static Setup"
+tab_index: 1
+rules:
+  - id: "AND-RECON-01"
+    name: "Application Identity & Signing Scheme"
+    execution_mode: "Automated_Static"
+    severity: "Low"
+    description: "Verify package identity, version code, and APK signature schemes (v1, v2, v3, v4)."
+    check_type: "signature_analysis"
+    min_scheme_required: 2
+
+  - id: "AND-RECON-02"
+    name: "Manifest Security Configuration"
+    execution_mode: "Automated_Static"
+    severity: "High"
+    description: "Audit AndroidManifest.xml for dangerous flags like debuggable and broad permissions."
+    check_type: "manifest_attribute"
+    rules:
+      - attribute: "debuggable"
+        expected: false
+        fail_severity: "High"
+      - attribute: "allowBackup"
+        expected: false
+        fail_severity: "Medium"
+
+  - id: "AND-RECON-03"
+    name: "URL Schemes & App Links Mapping"
+    execution_mode: "Automated_Static"
+    severity: "Medium"
+    description: "Extract deep links and verify autoVerify configurations on HTTP/HTTPS schemes."
+    check_type: "manifest_intent_filters"
+
+  - id: "AND-RECON-04"
+    name: "Hardcoded Secrets & API Endpoints"
+    execution_mode: "Automated_Static"
+    severity: "High"
+    description: "Scan DEX strings and assets for credentials, private keys, and hardcoded staging URLs."
+    check_type: "entropy_and_regex"
+
+  - id: "AND-RECON-05"
+    name: "Third-Party Frameworks & Dependencies"
+    execution_mode: "Automated_Static"
+    severity: "Low"
+    description: "Inventory embedded third-party libraries and native binaries."
+    check_type: "package_inventory"
+
+  - id: "AND-RECON-07"
+    name: "Dynamic Testing Environment Setup"
+    execution_mode: "Automated_Dynamic"
+    severity: "Informational"
+    description: "Validate device root status, SELinux enforcement, and ADB communication."
+    check_type: "device_health"

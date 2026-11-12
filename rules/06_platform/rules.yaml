@@ -1,0 +1,54 @@
+category: "MASVS-PLATFORM: Platform Interaction Testing"
+tab_index: 6
+rules:
+  - id: "AND-PLAT-01"
+    name: "Custom Scheme Hijacking & Parameter Injection"
+    execution_mode: "Automated_Static"
+    severity: "Medium"
+    description: "Identify custom URL schemes declared without validation or autoVerify."
+    check_type: "manifest_schemes_audit"
+
+  - id: "AND-PLAT-02"
+    name: "Android App Links Verification Missing"
+    execution_mode: "Automated_Static"
+    severity: "Low"
+    description: "Verify that HTTP/HTTPS deep links define android:autoVerify='true'."
+    check_type: "manifest_autoverify_audit"
+
+  - id: "AND-PLAT-03"
+    name: "Insecure WebView Settings & JavaScript Interface"
+    execution_mode: "Automated_Static"
+    severity: "High"
+    description: "Audit WebSettings for file access flags and bridge bindings via addJavascriptInterface."
+    check_type: "dex_webview_audit"
+
+  - id: "AND-PLAT-04"
+    name: "Exported Content Providers Without Permissions"
+    execution_mode: "Automated_Static"
+    severity: "High"
+    description: "Audit Content Providers exported to other applications without read/write permissions."
+    check_type: "manifest_provider_audit"
+
+  - id: "AND-PLAT-05"
+    name: "Sensitive Data Shared via System Clipboard"
+    execution_mode: "Automated_Static"
+    severity: "Low"
+    description: "Check for ClipboardManager.setPrimaryClip calls handling sensitive fields."
+    check_type: "dex_pattern_match"
+    target_apis:
+      - "Landroid/content/ClipboardManager;->setPrimaryClip"
+
+  - id: "AND-PLAT-06"
+    name: "Notification Lock Screen Data Leakage"
+    execution_mode: "Automated_Static"
+    severity: "Low"
+    description: "Verify whether notification channels explicitly set VISIBILITY_SECRET or VISIBILITY_PRIVATE."
+    check_type: "dex_pattern_match"
+    target_apis:
+      - "Landroid/app/NotificationChannel;->setLockscreenVisibility"
+
+  - id: "AND-PLAT-07"
+    name: "State Restoration Sensitive Data Storage"
+    execution_mode: "Manual_Checklist"
+    severity: "Low"
+    description: "Review onSaveInstanceState bundles for unencrypted sensitive session state."

@@ -1,0 +1,31 @@
+category: "Logging, Crash Reporting and Alerting"
+tab_index: 13
+rules:
+  - id: "AND-LOGM-01"
+    name: "Sensitive Data in Crash Dumps"
+    execution_mode: "Automated_Dynamic"
+    severity: "Medium"
+    description: "Inspect local crash files and logs for unencrypted credentials, tokens, or PII."
+    check_type: "crash_file_audit"
+
+  - id: "AND-LOGM-02"
+    name: "Security Event Logging Verification"
+    execution_mode: "Manual_Checklist"
+    severity: "Low"
+    description: "Confirm that failed authentication and tamper events trigger security telemetry."
+
+  - id: "AND-LOGM-03"
+    name: "Verbose Debug Logging in Release"
+    execution_mode: "Automated_Static"
+    severity: "Medium"
+    description: "Detect android.util.Log calls (Log.d, Log.v) present in release bytecode."
+    check_type: "dex_pattern_match"
+    target_apis:
+      - "Landroid/util/Log;->d("
+      - "Landroid/util/Log;->v("
+
+  - id: "AND-LOGM-04"
+    name: "Abuse Pattern Detection and Account Lockout"
+    execution_mode: "Manual_Checklist"
+    severity: "Medium"
+    description: "Verify that repeated malicious triggers result in account or device-level throttling."

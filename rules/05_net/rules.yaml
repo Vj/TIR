@@ -1,0 +1,42 @@
+category: "MASVS-NETWORK: Network Communication Testing"
+tab_index: 5
+rules:
+  - id: "AND-NETW-01"
+    name: "Cleartext Traffic Permitted"
+    execution_mode: "Automated_Static"
+    severity: "High"
+    description: "Verify that network_security_config.xml and Manifest restrict unencrypted HTTP traffic."
+    check_type: "network_security_config_eval"
+
+  - id: "AND-NETW-02"
+    name: "Insecure TrustManager / HostnameVerifier"
+    execution_mode: "Automated_Static"
+    severity: "Critical"
+    description: "Identify custom X509TrustManager or HostnameVerifier implementations that trust all certificates."
+    check_type: "dex_pattern_match"
+    target_apis:
+      - "Ljavax/net/ssl/X509TrustManager;->checkServerTrusted"
+      - "Ljavax/net/ssl/HostnameVerifier;->verify"
+    flag_empty_methods: true
+
+  - id: "AND-NETW-03"
+    name: "Certificate Pinning Configuration"
+    execution_mode: "Automated_Static"
+    severity: "Medium"
+    description: "Check for pin-set declarations in Network Security Config or OkHttp CertificatePinner."
+    check_type: "pinning_detector"
+
+  - id: "AND-NETW-04"
+    name: "Sensitive Parameters in URLs"
+    execution_mode: "Manual_Checklist"
+    severity: "Medium"
+    description: "Ensure sensitive tokens, passwords, and PII are passed in request bodies rather than query strings."
+
+  - id: "AND-NETW-05"
+    name: "Background Sync and Push Notification Data"
+    execution_mode: "Automated_Static"
+    severity: "Low"
+    description: "Audit FirebaseMessagingService handlers for plaintext caching of notification payloads."
+    check_type: "dex_pattern_match"
+    target_apis:
+      - "Lcom/google/firebase/messaging/RemoteMessage;->getData()Ljava/util/Map;"

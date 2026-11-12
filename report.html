@@ -1,0 +1,1642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TIR Mobile Security Verification Report</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --border: #e2e8f0;
+      --crit: #dc2626;
+      --high: #ea580c;
+      --med: #d97706;
+      --low: #ca8a04;
+      --info: #2563eb;
+      --pass: #16a34a;
+    }
+    
+    @media print {
+      body { background-color: #fff; padding: 0; font-size: 11pt; }
+      .container { max-width: 100%; }
+      .filter-controls, .metrics-bar { display: none !important; }
+      .finding-card { page-break-inside: avoid; border: 1px solid #cbd5e1; margin-bottom: 14pt; }
+      .tab-section { border: none; margin-bottom: 16pt; }
+      .tab-header { background: #f1f5f9; font-size: 13pt; }
+      .page-break { page-break-before: always; }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      margin: 0;
+      padding: 24px;
+    }
+    .container { max-width: 1100px; margin: 0 auto; }
+    .header {
+      background: var(--card-bg);
+      padding: 24px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    h1 { margin: 0 0 8px 0; font-size: 24px; color: #0f172a; }
+    .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 16px; font-size: 13px; }
+    .meta-item { background: #f1f5f9; padding: 10px 12px; border-radius: 4px; border: 1px solid #e2e8f0; }
+    
+    .metrics-bar { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+    .metric-card {
+      flex: 1;
+      min-width: 140px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.1s ease;
+    }
+    .metric-card:hover { transform: translateY(-2px); }
+    .metric-count { font-size: 24px; font-weight: bold; }
+    
+    .tab-section {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .tab-header {
+      padding: 14px 20px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+    .tab-content { padding: 16px; display: block; }
+    
+    .finding-card {
+      border: 1px solid var(--border);
+      border-left-width: 4px;
+      border-radius: 6px;
+      padding: 14px;
+      margin-bottom: 12px;
+      background: #fff;
+    }
+    .finding-card.Critical { border-left-color: var(--crit); }
+    .finding-card.High { border-left-color: var(--high); }
+    .finding-card.Medium { border-left-color: var(--med); }
+    .finding-card.Low { border-left-color: var(--low); }
+    .finding-card.Informational { border-left-color: var(--info); }
+    
+    .finding-title { font-weight: 600; font-size: 15px; margin-bottom: 6px; display: flex; justify-content: space-between; }
+    .badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; color: #fff; }
+    .badge.Critical { background-color: var(--crit); }
+    .badge.High { background-color: var(--high); }
+    .badge.Medium { background-color: var(--med); }
+    .badge.Low { background-color: var(--low); }
+    .badge.Informational { background-color: var(--info); }
+    .badge.Pass { background-color: var(--pass); }
+    .badge.Fail { background-color: var(--crit); }
+    .badge.Needs-Review { background-color: var(--med); }
+
+    pre.evidence-box {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+    .remediation-box {
+      background: #f0fdf4;
+      border-left: 3px solid var(--pass);
+      padding: 8px 12px;
+      font-size: 13px;
+      color: #166534;
+      margin-top: 8px;
+    }
+    .repro-box {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 10px;
+      border-radius: 4px;
+      margin: 8px 0;
+      font-size: 12px;
+    }
+    .evidence-preview img {
+      max-width: 320px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      margin-top: 6px;
+      display: block;
+    }
+    .filter-controls { margin-bottom: 16px; display: flex; gap: 8px; }
+    .filter-btn {
+      padding: 6px 14px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: white;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .filter-btn.active { background: #0f172a; color: white; }
+
+    table.perm-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.perm-table th { background: #f1f5f9; text-align: left; padding: 10px; border-bottom: 2px solid var(--border); }
+    table.perm-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+
+    @media (max-width: 640px) {
+      body { padding: 12px; }
+      .header { padding: 16px; }
+      .finding-title { flex-direction: column; gap: 6px; }
+      .finding-title > span:last-child { display: flex; flex-wrap: wrap; gap: 4px; }
+      .filter-controls { flex-wrap: wrap; }
+      table.perm-table { display: block; overflow-x: auto; white-space: nowrap; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+          <h1>TIR Mobile Application Security Audit</h1>
+          <div style="color: #64748b; font-size: 13px;">Enterprise OWASP MASVS & MASTG Compliance Verification</div>
+        </div>
+        <div style="text-align: right; font-size: 12px; color: #475569;">
+          <strong>Auditor Engine:</strong> TIR Auditor v2.4-enterprise<br>
+          <strong>Standard:</strong> OWASP MASVS v2.0
+        </div>
+      </div>
+      
+      <div class="meta-grid">
+        <div class="meta-item"><strong>Package:</strong> com.android.insecurebankv2</div>
+        <div class="meta-item"><strong>Version:</strong> 1.0 (Code: 1)</div>
+        <div class="meta-item"><strong>Target / Min SDK:</strong> 22 / 15</div>
+        <div class="meta-item"><strong>File Size:</strong> 3.30 MB (3,462,429 bytes)</div>
+        <div class="meta-item"><strong>SHA-256 Hash:</strong> <code style="font-size: 11px; word-break: break-all;">b18af2a0e44d7634bbcdf93664d9c78a2695e050393fcfbb5e8b91f902d194a4</code></div>
+        <div class="meta-item"><strong>Signing Cert:</strong> Present (Signature Block Detected)</div>
+        <div class="meta-item"><strong>Cert Fingerprint:</strong> <code style="font-size: 11px; word-break: break-all;">5e64f93b47f262e8804c3613ba531b2d2d82c493e66aa90a3c19c2c2c4f320a7</code></div>
+        <div class="meta-item"><strong>Assessment Date:</strong> 2026-11-11 22:12:09</div>
+      </div>
+    </div>
+
+    <!-- Executive Metrics Bar -->
+    <div class="metrics-bar">
+      <div class="metric-card" onclick="applyFindingFilter('status', 'ALL', document.querySelector('[data-filter-type=\"status\"][data-filter-value=\"ALL\"]'))">
+        <div class="metric-count" style="color: #0f172a;">24</div>
+        <div style="font-size: 12px; color: #64748b;">Evaluated Controls</div>
+      </div>
+      <div class="metric-card" onclick="applyFindingFilter('status', 'Fail', document.querySelector('[data-filter-type=\"status\"][data-filter-value=\"Fail\"]'))">
+        <div class="metric-count" style="color: var(--crit);">10</div>
+        <div style="font-size: 12px; color: #64748b;">Failed Checks</div>
+      </div>
+      <div class="metric-card" onclick="applyFindingFilter('status', 'Needs Review', document.querySelector('[data-filter-type=\"status\"][data-filter-value=\"Needs Review\"]'))">
+        <div class="metric-count" style="color: var(--med);">11</div>
+        <div style="font-size: 12px; color: #64748b;">Needs Review</div>
+      </div>
+      <div class="metric-card" onclick="applyFindingFilter('status', 'Pass', document.querySelector('[data-filter-type=\"status\"][data-filter-value=\"Pass\"]'))">
+        <div class="metric-count" style="color: var(--pass);">3</div>
+        <div style="font-size: 12px; color: #64748b;">Passed Controls</div>
+      </div>
+      <div class="metric-card" onclick="applyFindingFilter('severity', 'High', null)">
+        <div class="metric-count" style="color: var(--high);">9</div>
+        <div style="font-size: 12px; color: #64748b;">High Severity</div>
+      </div>
+      <div class="metric-card" onclick="applyFindingFilter('severity', 'Medium', null)">
+        <div class="metric-count" style="color: var(--med);">5</div>
+        <div style="font-size: 12px; color: #64748b;">Medium Severity</div>
+      </div>
+    </div>
+
+    <!-- Prioritized Remediation Roadmap -->
+    
+    <div class="tab-section">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>Prioritized Remediation Roadmap (Action Plan)</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content" style="font-size: 13px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+          <!-- Phase 1 -->
+          <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 12px;">
+            <div style="font-weight: 700; color: #991b1b; margin-bottom: 8px;">Phase 1: Immediate Triage (Critical & High)</div>
+            
+              <ul style="padding-left: 18px; margin: 0;">
+                
+                <li style="margin-bottom: 6px;">
+                  <strong>[AND-RECON-02]</strong> Application is Marked Debuggable
+                </li>
+                
+                <li style="margin-bottom: 6px;">
+                  <strong>[AND-PLAT-04]</strong> Exported Content Provider Unprotected: com.android.insecurebankv2.TrackUserContentProvider
+                </li>
+                
+                <li style="margin-bottom: 6px;">
+                  <strong>[AND-PLAT-08]</strong> Exported Unprotected Activity: PostLogin
+                </li>
+                
+                <li style="margin-bottom: 6px;">
+                  <strong>[AND-PLAT-08]</strong> Exported Unprotected Activity: DoTransfer
+                </li>
+                
+                <li style="margin-bottom: 6px;">
+                  <strong>[AND-PLAT-08]</strong> Exported Unprotected Activity: ViewStatement
+                </li>
+                
+                <li style="margin-bottom: 6px;">
+                  <strong>[AND-PLAT-08]</strong> Exported Unprotected Activity: ChangePassword
+                </li>
+                
+                <li style="margin-bottom: 6px;">
+                  <strong>[STA-025]</strong> Unsafe Intent.parseUri() Construction (Intent Redirection Risk)
+                </li>
+                
+                <li style="margin-bottom: 6px;">
+                  <strong>[STA-023]</strong> Potentially Predictable Pseudo-Random Number Generator
+                </li>
+                
+              </ul>
+            
+          </div>
+
+          <!-- Phase 2 -->
+          <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 12px;">
+            <div style="font-weight: 700; color: #92400e; margin-bottom: 8px;">Phase 2: Next Release Cycle (Medium)</div>
+            
+              <ul style="padding-left: 18px; margin: 0;">
+                
+                <li style="margin-bottom: 6px;">
+                  <strong>[AND-STOR-05]</strong> Full Backup Permitted Without Exclusion Rules
+                </li>
+                
+                <li style="margin-bottom: 6px;">
+                  <strong>[AND-PLAT-08]</strong> Exported Unprotected Broadcast Receiver: MyBroadCastReceiver
+                </li>
+                
+              </ul>
+            
+          </div>
+
+          <!-- Phase 3 -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px;">
+            <div style="font-weight: 700; color: #334155; margin-bottom: 8px;">Phase 3: Architectural Hardening & Verification</div>
+            
+              <ul style="padding-left: 18px; margin: 0;">
+                
+                <li style="margin-bottom: 6px;">
+                  <strong>[AND-NETW-01]</strong> Missing Dedicated Network Security Configuration
+                </li>
+                
+                <li style="margin-bottom: 6px;">
+                  <strong>[AND-PLAT-03]</strong> WebView JavaScript Execution Enabled
+                </li>
+                
+                <li style="margin-bottom: 6px;">
+                  <strong>[AND-PLAT-03]</strong> Native JavaScript Interface Exposed
+                </li>
+                
+                <li style="margin-bottom: 6px;">
+                  <strong>[AND-RESL-02]</strong> Anti-Debugging Protection Analysis
+                </li>
+                
+                <li style="margin-bottom: 6px;">
+                  <strong>[AND-RESL-03]</strong> Emulator Detection Analysis
+                </li>
+                
+                <li style="margin-bottom: 6px;">
+                  <strong>[AND-RESL-05]</strong> Runtime Hooking Resistance Analysis
+                </li>
+                
+                
+                <li style="color: #64748b;">+ 5 more items</li>
+                
+              </ul>
+            
+          </div>
+        </div>
+      </div>
+    </div>
+    
+
+    <!-- Permissions Inventory Table -->
+    
+    <div class="tab-section">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>Declared Application Permissions (9 permissions)</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content">
+        <table class="perm-table">
+          <thead>
+            <tr>
+              <th style="width: 32%;">Permission Name</th>
+              <th style="width: 18%;">Protection Level</th>
+              <th style="width: 50%;">Security Risk & Observation</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+            <tr>
+              <td><code>android.permission.ACCESS_COARSE_LOCATION</code></td>
+              <td>
+                <span class="badge High">
+                  Dangerous (Runtime)
+                </span>
+              </td>
+              <td>
+                <strong>Provides approximate network-based location.</strong>
+                <div style="margin-top: 4px; color: #64748b; font-size: 12px;">Request only when foreground location access is actively required.</div>
+              </td>
+            </tr>
+            
+            <tr>
+              <td><code>android.permission.READ_CONTACTS</code></td>
+              <td>
+                <span class="badge High">
+                  Dangerous (Runtime)
+                </span>
+              </td>
+              <td>
+                <strong>Grants access to address book and contact details, posing user data privacy risks.</strong>
+                <div style="margin-top: 4px; color: #64748b; font-size: 12px;">Ensure permission is requested with in-context justification and strictly guarded.</div>
+              </td>
+            </tr>
+            
+            <tr>
+              <td><code>android.permission.SEND_SMS</code></td>
+              <td>
+                <span class="badge High">
+                  Dangerous (Runtime)
+                </span>
+              </td>
+              <td>
+                <strong>Allows sending SMS messages, which could result in unintended toll charges or data leakage.</strong>
+                <div style="margin-top: 4px; color: #64748b; font-size: 12px;">Verify SMS transmission is strictly necessary and protected from automated injection.</div>
+              </td>
+            </tr>
+            
+            <tr>
+              <td><code>android.permission.WRITE_EXTERNAL_STORAGE</code></td>
+              <td>
+                <span class="badge High">
+                  Dangerous / Legacy
+                </span>
+              </td>
+              <td>
+                <strong>Allows modification or writing of files across shared storage.</strong>
+                <div style="margin-top: 4px; color: #64748b; font-size: 12px;">Target Android 10+ (API 29+) Scoped Storage and deprecate broad write access.</div>
+              </td>
+            </tr>
+            
+            <tr>
+              <td><code>android.permission.ACCESS_NETWORK_STATE</code></td>
+              <td>
+                <span class="badge Informational">
+                  Normal (Install-time)
+                </span>
+              </td>
+              <td>
+                <strong>Standard system permission requested at install time.</strong>
+                <div style="margin-top: 4px; color: #64748b; font-size: 12px;">Maintain least-privilege principles.</div>
+              </td>
+            </tr>
+            
+            <tr>
+              <td><code>android.permission.GET_ACCOUNTS</code></td>
+              <td>
+                <span class="badge Informational">
+                  Normal (Install-time)
+                </span>
+              </td>
+              <td>
+                <strong>Standard system permission requested at install time.</strong>
+                <div style="margin-top: 4px; color: #64748b; font-size: 12px;">Maintain least-privilege principles.</div>
+              </td>
+            </tr>
+            
+            <tr>
+              <td><code>android.permission.INTERNET</code></td>
+              <td>
+                <span class="badge Informational">
+                  Normal (Install-time)
+                </span>
+              </td>
+              <td>
+                <strong>Standard system permission requested at install time.</strong>
+                <div style="margin-top: 4px; color: #64748b; font-size: 12px;">Maintain least-privilege principles.</div>
+              </td>
+            </tr>
+            
+            <tr>
+              <td><code>android.permission.READ_PROFILE</code></td>
+              <td>
+                <span class="badge Informational">
+                  Normal (Install-time)
+                </span>
+              </td>
+              <td>
+                <strong>Standard system permission requested at install time.</strong>
+                <div style="margin-top: 4px; color: #64748b; font-size: 12px;">Maintain least-privilege principles.</div>
+              </td>
+            </tr>
+            
+            <tr>
+              <td><code>android.permission.USE_CREDENTIALS</code></td>
+              <td>
+                <span class="badge Informational">
+                  Normal (Install-time)
+                </span>
+              </td>
+              <td>
+                <strong>Standard system permission requested at install time.</strong>
+                <div style="margin-top: 4px; color: #64748b; font-size: 12px;">Maintain least-privilege principles.</div>
+              </td>
+            </tr>
+            
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+
+    <!-- Filter Buttons -->
+    <div class="filter-controls">
+      <button class="filter-btn active" data-filter-type="status" data-filter-value="ALL" onclick="applyFindingFilter('status', 'ALL', this)">All Results</button>
+      <button class="filter-btn" data-filter-type="status" data-filter-value="Fail" onclick="applyFindingFilter('status', 'Fail', this)">Failures Only</button>
+      <button class="filter-btn" data-filter-type="status" data-filter-value="Needs Review" onclick="applyFindingFilter('status', 'Needs Review', this)">Needs Review</button>
+      <button class="filter-btn" data-filter-type="status" data-filter-value="Pass" onclick="applyFindingFilter('status', 'Pass', this)">Passed Checks</button>
+    </div>
+
+    <!-- Grouped Categories & Detailed Cards -->
+    
+    
+    <div class="tab-section">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>Advanced Cryptographic Security (1 items)</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content">
+        
+        <div class="finding-card Low" data-severity="Low" data-status="Needs Review">
+          <div class="finding-title">
+            <span>[ADV-CRYP-02] Hardware StrongBox Key Storage Not Enforced</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Needs-Review">Needs Review</span>
+              <span class="badge Low">Low</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+
+            
+
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">No invocations of 'setIsStrongBoxBacked(true)' detected in KeyGenParameterSpec definitions. Cryptographic keys may reside in software TEE rather than dedicated hardware security modules.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">No references to setIsStrongBoxBacked detected in DEX classes.</pre>
+          
+
+          
+          <div class="remediation-box">
+            <strong>Remediation:</strong> On supported devices (Android 9+), call setIsStrongBoxBacked(true) for high-value encryption and signing keys.
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="tab-section">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>Advanced Platform Security (1 items)</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content">
+        
+        <div class="finding-card Medium" data-severity="Medium" data-status="Needs Review">
+          <div class="finding-title">
+            <span>[ADV-TOUCH-01] Overlay Protection Missing (Tapjacking Risk)</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Needs-Review">Needs Review</span>
+              <span class="badge Medium">Medium</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+
+            
+
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">No references to 'filterTouchesWhenObscured' or 'FLAG_WINDOW_IS_OBSCURED' detected. Input fields may be vulnerable to malicious overlays.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">Zero references to touch filtering flags detected in application bytecode.</pre>
+          
+
+          
+          <div class="remediation-box">
+            <strong>Remediation:</strong> Apply android:filterTouchesWhenObscured='true' to sensitive layout views or handle onTouch events by checking for FLAG_WINDOW_IS_OBSCURED.
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="tab-section">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>Information Gathering and Static Setup (1 items)</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content">
+        
+        <div class="finding-card High" data-severity="High" data-status="Fail">
+          <div class="finding-title">
+            <span>[AND-RECON-02] Application is Marked Debuggable</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Fail">Fail</span>
+              <span class="badge High">High</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+
+            
+
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">android:debuggable is set to true in AndroidManifest.xml.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">android:debuggable='true'</pre>
+          
+
+          
+          <div class="remediation-box">
+            <strong>Remediation:</strong> Set android:debuggable='false' in release builds.
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="tab-section">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>Logging, Crash Reporting and Alerting (1 items)</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content">
+        
+        <div class="finding-card Informational" data-severity="Informational" data-status="Pass">
+          <div class="finding-title">
+            <span>[AND-LOGM-03] Debug Logging Stripped from Bytecode</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Pass">Pass</span>
+              <span class="badge Informational">Informational</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+
+            
+
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">No active Log.d or Log.v invocations detected.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">Zero references found in DEX classes.</pre>
+          
+
+          
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="tab-section">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>MASVS-CODE (1 items)</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content">
+        
+        <div class="finding-card Informational" data-severity="Informational" data-status="Pass">
+          <div class="finding-title">
+            <span>[AND-CODE-07] Code Obfuscation Confirmed (34.7% Minification)</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Pass">Pass</span>
+              <span class="badge Informational">Informational</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+
+            
+
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">Application classes are minified and obfuscated with ProGuard or R8.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">17 of 49 classes use shortened names.</pre>
+          
+
+          
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="tab-section">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>MASVS-CRYPTO (1 items)</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content">
+        
+        <div class="finding-card High" data-severity="High" data-status="Fail">
+          <div class="finding-title">
+            <span>[STA-023] Potentially Predictable Pseudo-Random Number Generator</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Fail">Fail</span>
+              <span class="badge High">High</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+
+            
+
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">java.util.Random was detected in proximity to security-critical tokens or keys. This PRNG is non-cryptographic, linear congruential, and predictable.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">Invocation Ljava/util/Random; in classes.dex</pre>
+          
+
+          
+          <div class="remediation-box">
+            <strong>Remediation:</strong> Replace all security and cryptographic randomization calls with java.security.SecureRandom.
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="tab-section">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>MASVS-NETWORK (1 items)</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content">
+        
+        <div class="finding-card Low" data-severity="Low" data-status="Needs Review">
+          <div class="finding-title">
+            <span>[AND-NETW-01] Missing Dedicated Network Security Configuration</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Needs-Review">Needs Review</span>
+              <span class="badge Low">Low</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+
+            
+
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">No network_security_config.xml found in APK. Default Android 9+ rules apply.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">No configuration file detected in resources.</pre>
+          
+
+          
+          <div class="remediation-box">
+            <strong>Remediation:</strong> Explicitly declare res/xml/network_security_config.xml disabling cleartext.
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="tab-section">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>MASVS-PLATFORM (10 items)</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content">
+        
+        <div class="finding-card Low" data-severity="Low" data-status="Needs Review">
+          <div class="finding-title">
+            <span>[AND-PLAT-03] WebView JavaScript Execution Enabled</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Needs-Review">Needs Review</span>
+              <span class="badge Low">Low</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+
+            
+
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">setJavaScriptEnabled(true) detected. Audit to ensure WebView loads trusted content only.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">Found in classes.dex</pre>
+          
+
+          
+          <div class="remediation-box">
+            <strong>Remediation:</strong> Disable JavaScript unless required, and enforce strict URL whitelisting.
+          </div>
+          
+        </div>
+        
+        <div class="finding-card Medium" data-severity="Medium" data-status="Needs Review">
+          <div class="finding-title">
+            <span>[AND-PLAT-03] Native JavaScript Interface Exposed</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Needs-Review">Needs Review</span>
+              <span class="badge Medium">Medium</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+
+            
+
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">addJavascriptInterface exposes native methods to JavaScript within WebViews.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">addJavascriptInterface call found in classes.dex</pre>
+          
+
+          
+          <div class="remediation-box">
+            <strong>Remediation:</strong> Ensure all exposed methods use @JavascriptInterface and validate calling origins.
+          </div>
+          
+        </div>
+        
+        <div class="finding-card High" data-severity="High" data-status="Fail">
+          <div class="finding-title">
+            <span>[AND-PLAT-04] Exported Content Provider Unprotected: com.android.insecurebankv2.TrackUserContentProvider</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Fail">Fail</span>
+              <span class="badge High">High</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+
+            
+
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">Provider 'com.android.insecurebankv2.TrackUserContentProvider' is exported without readPermission or writePermission attributes.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">android:exported='true' with no access permissions defined.</pre>
+          
+
+          
+          <div class="remediation-box">
+            <strong>Remediation:</strong> Set android:exported='false' or guard the component with signature-level permissions.
+          </div>
+          
+        </div>
+        
+        <div class="finding-card High" data-severity="High" data-status="Fail">
+          <div class="finding-title">
+            <span>[AND-PLAT-08] Exported Unprotected Activity: PostLogin</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Fail">Fail</span>
+              <span class="badge High">High</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+            <span style="background: #e2e8f0; color: #334155; padding: 2px 6px; border-radius: 3px;">
+              <strong>Target:</strong> <code>com.android.insecurebankv2/com.android.insecurebankv2.PostLogin</code>
+            </span>
+            
+
+            
+            <span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 3px;">
+              <strong>CWE:</strong> CWE-926: Improper Export of Android Application Components
+            </span>
+            
+
+            
+            <span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 3px;">
+              <strong>OWASP:</strong> MASVS-PLATFORM-1
+            </span>
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">Activity 'com.android.insecurebankv2.PostLogin' is exported to other applications without permission restrictions.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">Component: com.android.insecurebankv2.PostLogin
+Type: Activity
+Explicitly Exported: true
+Effective Exported: True
+Intent Filters Count: 0</pre>
+          
+
+          
+          <div class="remediation-box">
+            <strong>Remediation:</strong> Set android:exported='false' if external access is unnecessary, or define android:permission with protectionLevel='signature'.
+          </div>
+          
+        </div>
+        
+        <div class="finding-card High" data-severity="High" data-status="Fail">
+          <div class="finding-title">
+            <span>[AND-PLAT-08] Exported Unprotected Activity: DoTransfer</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Fail">Fail</span>
+              <span class="badge High">High</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+            <span style="background: #e2e8f0; color: #334155; padding: 2px 6px; border-radius: 3px;">
+              <strong>Target:</strong> <code>com.android.insecurebankv2/com.android.insecurebankv2.DoTransfer</code>
+            </span>
+            
+
+            
+            <span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 3px;">
+              <strong>CWE:</strong> CWE-926: Improper Export of Android Application Components
+            </span>
+            
+
+            
+            <span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 3px;">
+              <strong>OWASP:</strong> MASVS-PLATFORM-1
+            </span>
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">Activity 'com.android.insecurebankv2.DoTransfer' is exported to other applications without permission restrictions.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">Component: com.android.insecurebankv2.DoTransfer
+Type: Activity
+Explicitly Exported: true
+Effective Exported: True
+Intent Filters Count: 0</pre>
+          
+
+          
+          <div class="remediation-box">
+            <strong>Remediation:</strong> Set android:exported='false' if external access is unnecessary, or define android:permission with protectionLevel='signature'.
+          </div>
+          
+        </div>
+        
+        <div class="finding-card High" data-severity="High" data-status="Fail">
+          <div class="finding-title">
+            <span>[AND-PLAT-08] Exported Unprotected Activity: ViewStatement</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Fail">Fail</span>
+              <span class="badge High">High</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+            <span style="background: #e2e8f0; color: #334155; padding: 2px 6px; border-radius: 3px;">
+              <strong>Target:</strong> <code>com.android.insecurebankv2/com.android.insecurebankv2.ViewStatement</code>
+            </span>
+            
+
+            
+            <span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 3px;">
+              <strong>CWE:</strong> CWE-926: Improper Export of Android Application Components
+            </span>
+            
+
+            
+            <span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 3px;">
+              <strong>OWASP:</strong> MASVS-PLATFORM-1
+            </span>
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">Activity 'com.android.insecurebankv2.ViewStatement' is exported to other applications without permission restrictions.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">Component: com.android.insecurebankv2.ViewStatement
+Type: Activity
+Explicitly Exported: true
+Effective Exported: True
+Intent Filters Count: 0</pre>
+          
+
+          
+          <div class="remediation-box">
+            <strong>Remediation:</strong> Set android:exported='false' if external access is unnecessary, or define android:permission with protectionLevel='signature'.
+          </div>
+          
+        </div>
+        
+        <div class="finding-card High" data-severity="High" data-status="Fail">
+          <div class="finding-title">
+            <span>[AND-PLAT-08] Exported Unprotected Activity: ChangePassword</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Fail">Fail</span>
+              <span class="badge High">High</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+            <span style="background: #e2e8f0; color: #334155; padding: 2px 6px; border-radius: 3px;">
+              <strong>Target:</strong> <code>com.android.insecurebankv2/com.android.insecurebankv2.ChangePassword</code>
+            </span>
+            
+
+            
+            <span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 3px;">
+              <strong>CWE:</strong> CWE-926: Improper Export of Android Application Components
+            </span>
+            
+
+            
+            <span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 3px;">
+              <strong>OWASP:</strong> MASVS-PLATFORM-1
+            </span>
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">Activity 'com.android.insecurebankv2.ChangePassword' is exported to other applications without permission restrictions.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">Component: com.android.insecurebankv2.ChangePassword
+Type: Activity
+Explicitly Exported: true
+Effective Exported: True
+Intent Filters Count: 0</pre>
+          
+
+          
+          <div class="remediation-box">
+            <strong>Remediation:</strong> Set android:exported='false' if external access is unnecessary, or define android:permission with protectionLevel='signature'.
+          </div>
+          
+        </div>
+        
+        <div class="finding-card Medium" data-severity="Medium" data-status="Fail">
+          <div class="finding-title">
+            <span>[AND-PLAT-08] Exported Unprotected Broadcast Receiver: MyBroadCastReceiver</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Fail">Fail</span>
+              <span class="badge Medium">Medium</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+            <span style="background: #e2e8f0; color: #334155; padding: 2px 6px; border-radius: 3px;">
+              <strong>Target:</strong> <code>com.android.insecurebankv2/com.android.insecurebankv2.MyBroadCastReceiver</code>
+            </span>
+            
+
+            
+            <span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 3px;">
+              <strong>CWE:</strong> CWE-926: Improper Export of Android Application Components
+            </span>
+            
+
+            
+            <span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 3px;">
+              <strong>OWASP:</strong> MASVS-PLATFORM-1
+            </span>
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">Broadcast Receiver 'com.android.insecurebankv2.MyBroadCastReceiver' is exported to other applications without permission restrictions.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">Component: com.android.insecurebankv2.MyBroadCastReceiver
+Type: Broadcast Receiver
+Explicitly Exported: true
+Effective Exported: True
+Intent Filters Count: 1</pre>
+          
+
+          
+          <div class="remediation-box">
+            <strong>Remediation:</strong> Set android:exported='false' if external access is unnecessary, or define android:permission with protectionLevel='signature'.
+          </div>
+          
+        </div>
+        
+        <div class="finding-card High" data-severity="High" data-status="Fail">
+          <div class="finding-title">
+            <span>[STA-025] Unsafe Intent.parseUri() Construction (Intent Redirection Risk)</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Fail">Fail</span>
+              <span class="badge High">High</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+
+            
+
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">Intent.parseUri is used to instantiate intents from string URIs. If not sanitized with Intent.URI_ANDROID_APP_SCHEME and stripped of selector intents, this enables arbitrary component launches.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">Call to Intent.parseUri detected in classes.dex.</pre>
+          
+
+          
+          <div class="remediation-box">
+            <strong>Remediation:</strong> Filter out internal component selectors and enforce Intent.CATEGORY_BROWSABLE before invoking startActivity().
+          </div>
+          
+        </div>
+        
+        <div class="finding-card High" data-severity="High" data-status="Needs Review">
+          <div class="finding-title">
+            <span>[STA-024] WebView JavaScript Interface Bridge Exposed</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Needs-Review">Needs Review</span>
+              <span class="badge High">High</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+
+            
+
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">addJavascriptInterface() exposes native Java/Kotlin methods to the JavaScript context.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">Call to addJavascriptInterface identified in classes.dex.</pre>
+          
+
+          
+          <div class="remediation-box">
+            <strong>Remediation:</strong> Annotate all exposed methods with @JavascriptInterface and enforce strict origin checks on loaded URLs.
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="tab-section">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>MASVS-PRIVACY (1 items)</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content">
+        
+        <div class="finding-card Low" data-severity="Low" data-status="Needs Review">
+          <div class="finding-title">
+            <span>[AND-PRIV-03] Advertising Identifier (AAID) In Use</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Needs-Review">Needs Review</span>
+              <span class="badge Low">Low</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+
+            
+
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">Application calls AdvertisingIdClient but is missing the AD_ID permission declaration.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">AD_ID permission declared: False</pre>
+          
+
+          
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="tab-section">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>MASVS-RESILIENCE (4 items)</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content">
+        
+        <div class="finding-card Informational" data-severity="Informational" data-status="Pass">
+          <div class="finding-title">
+            <span>[AND-RESL-01] Root Detection Mechanism Analysis</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Pass">Pass</span>
+              <span class="badge Informational">Informational</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+
+            
+
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">Root detection heuristics detected in application bytecode.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">Identified strings/APIs: ['Superuser.apk']</pre>
+          
+
+          
+        </div>
+        
+        <div class="finding-card Low" data-severity="Low" data-status="Needs Review">
+          <div class="finding-title">
+            <span>[AND-RESL-02] Anti-Debugging Protection Analysis</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Needs-Review">Needs Review</span>
+              <span class="badge Low">Low</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+
+            
+
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">No native or managed debugger detection mechanisms identified.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">None</pre>
+          
+
+          
+        </div>
+        
+        <div class="finding-card Low" data-severity="Low" data-status="Needs Review">
+          <div class="finding-title">
+            <span>[AND-RESL-03] Emulator Detection Analysis</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Needs-Review">Needs Review</span>
+              <span class="badge Low">Low</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+
+            
+
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">No emulator fingerprint detection routines detected.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">None</pre>
+          
+
+          
+        </div>
+        
+        <div class="finding-card Low" data-severity="Low" data-status="Needs Review">
+          <div class="finding-title">
+            <span>[AND-RESL-05] Runtime Hooking Resistance Analysis</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Needs-Review">Needs Review</span>
+              <span class="badge Low">Low</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+
+            
+
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">No runtime checks for dynamic instrumentation frameworks detected.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">None</pre>
+          
+
+          
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="tab-section">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>MASVS-STORAGE (1 items)</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content">
+        
+        <div class="finding-card Medium" data-severity="Medium" data-status="Fail">
+          <div class="finding-title">
+            <span>[AND-STOR-05] Full Backup Permitted Without Exclusion Rules</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Fail">Fail</span>
+              <span class="badge Medium">Medium</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+            <span style="background: #e2e8f0; color: #334155; padding: 2px 6px; border-radius: 3px;">
+              <strong>Target:</strong> <code><application></code>
+            </span>
+            
+
+            
+            <span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 3px;">
+              <strong>CWE:</strong> CWE-200: Exposure of Sensitive Information to an Unauthorized Actor
+            </span>
+            
+
+            
+            <span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 3px;">
+              <strong>OWASP:</strong> MASVS-STORAGE-2
+            </span>
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">android:allowBackup is enabled with no fullBackupContent or dataExtractionRules specified. All sandbox files will be backed up by default.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">android:allowBackup='true' with no exclusion filter configured.</pre>
+          
+
+          
+          <div class="remediation-box">
+            <strong>Remediation:</strong> Set android:allowBackup='false' or define a data_extraction_rules.xml resource excluding private application storage.
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="tab-section">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>Supply Chain & Third-Party SDKs (1 items)</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content">
+        
+        <div class="finding-card Medium" data-severity="Medium" data-status="Needs Review">
+          <div class="finding-title">
+            <span>[STA-032] Third-Party SDK Risk: Apache HttpClient (org.apache.http)</span>
+            <span>
+              <span class="badge" style="background-color: #475569; font-weight: 500;">
+                AnalysisType.STATIC
+              </span>
+              <span class="badge Needs-Review">Needs Review</span>
+              <span class="badge Medium">Medium</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            
+
+            
+
+            
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">Deprecated Apache HTTP client detected. Deprecated since Android 6.0 and unmaintained; lacks modern TLS 1.3 cipher suite negotiation.</p>
+
+          
+
+          
+
+          
+          <pre class="evidence-box">Matched namespace signature: Lorg/apache/http/client/HttpClient;</pre>
+          
+
+          
+          <div class="remediation-box">
+            <strong>Remediation:</strong> Migrate network communications to OkHttp 4.x or standard HttpURLConnection.
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <!-- Assessment Methodology & Scope Limitations -->
+    <div class="tab-section page-break">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>Assessment Methodology, Testing Scope & Limitations</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content" style="font-size: 13px; line-height: 1.6; color: #475569;">
+        <h4 style="margin: 0 0 6px 0; color: #0f172a;">1. Assessment Methodology</h4>
+        <p style="margin: 0 0 12px 0;">
+          This security audit was conducted using the TIR Autonomous Mobile Security Engine adhering to the <strong>OWASP Mobile Application Security Verification Standard (MASVS v2.0)</strong> and Mobile Application Security Testing Guide (MASTG). The analysis includes static bytecode deconstruction, DEX opcode analysis, manifest configuration review, native library ELF parsing, and automated dynamic runtime instrumentation via ADB.
+        </p>
+
+        <h4 style="margin: 0 0 6px 0; color: #0f172a;">2. Scope Boundaries & Coverage</h4>
+        <p style="margin: 0 0 12px 0;">
+          Evaluation is strictly limited to client-side vulnerabilities residing within the provided application binary package (DEX classes, compiled native shared libraries, resources, and local data boundaries). Server-side APIs, third-party backend infrastructure, and external network end-nodes are excluded except where client-side TLS handshake and endpoint configuration parameters are statically or dynamically audited.
+        </p>
+
+        <h4 style="margin: 0 0 6px 0; color: #0f172a;">3. Limitations & Retesting Disclaimer</h4>
+        <p style="margin: 0;">
+          Static analysis identifies structural security weaknesses and pattern matches within application code and libraries; absence of findings does not guarantee complete absence of zero-day vulnerabilities. Runtime validation reflects the behavior observed on the tested target Android SDK platform and may vary across customized vendor OEM operating systems. Retesting is required following code refactoring or library updates to verify remediation effectiveness.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function toggleAccordion(header) {
+      const content = header.nextElementSibling;
+      const arrow = header.children[1];
+      if (content.style.display === "none") {
+        content.style.display = "block";
+        arrow.textContent = "▼";
+      } else {
+        content.style.display = "none";
+        arrow.textContent = "▲";
+      }
+    }
+
+    function applyFindingFilter(filterType, filterValue, btn) {
+      // Keep the selected filter button visually in sync with the displayed findings.
+      document.querySelectorAll('.filter-btn').forEach(button => button.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+
+      const cards = document.querySelectorAll('.finding-card');
+      cards.forEach(card => {
+        const actualValue = card.getAttribute(
+          filterType === 'severity' ? 'data-severity' : 'data-status'
+        );
+        const show = filterValue === 'ALL' || actualValue === filterValue;
+        card.style.display = show ? '' : 'none';
+      });
+
+      // Hide category sections that contain no visible findings.
+      document.querySelectorAll('.tab-section').forEach(section => {
+        if (!section.querySelector('.finding-card')) return;
+        const hasVisibleFinding = Array.from(section.querySelectorAll('.finding-card'))
+          .some(card => card.style.display !== 'none');
+        section.style.display = hasVisibleFinding ? '' : 'none';
+      });
+    }
+  </script>
+</body>
+</html>

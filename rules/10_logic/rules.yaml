@@ -1,0 +1,32 @@
+category: "Business Logic Testing"
+tab_index: 10
+rules:
+  - id: "AND-BUSL-01"
+    name: "Client-Side Parameter Manipulation"
+    execution_mode: "Manual_Checklist"
+    severity: "High"
+    description: "Verify that prices, discounts, and item quantities cannot be manipulated client-side before checkout submission."
+
+  - id: "AND-BUSL-02"
+    name: "Insecure Direct Object References (IDOR)"
+    execution_mode: "Manual_Checklist"
+    severity: "High"
+    description: "Test API endpoints for sequential or guessable identifiers that allow cross-tenant data access."
+
+  - id: "AND-BUSL-03"
+    name: "Multi-Step Workflow Sequence Enforcement"
+    execution_mode: "Manual_Checklist"
+    severity: "High"
+    description: "Confirm that mandatory steps (KYC, 2FA, approval gates) cannot be skipped by directly calling succeeding endpoints."
+
+  - id: "AND-BUSL-04"
+    name: "Promo Code and Referral Race Conditions"
+    execution_mode: "Manual_Checklist"
+    severity: "Medium"
+    description: "Ensure promo codes and referral redemption endpoints enforce strict idempotency and concurrency locks."
+
+  - id: "AND-BUSL-05"
+    name: "File and Image Upload Validation"
+    execution_mode: "Manual_Checklist"
+    severity: "Medium"
+    description: "Verify that file upload routines enforce strict server-side content-type, extension, and file-size constraints."

@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TIR Mobile Security Verification Report</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --border: #e2e8f0;
+      --crit: #dc2626;
+      --high: #ea580c;
+      --med: #d97706;
+      --low: #ca8a04;
+      --info: #2563eb;
+      --pass: #16a34a;
+    }
+    
+    @media print {
+      body { background-color: #fff; padding: 0; font-size: 11pt; }
+      .container { max-width: 100%; }
+      .filter-controls, .metrics-bar { display: none !important; }
+      .finding-card { page-break-inside: avoid; border: 1px solid #cbd5e1; margin-bottom: 14pt; }
+      .tab-section { border: none; margin-bottom: 16pt; }
+      .tab-header { background: #f1f5f9; font-size: 13pt; }
+      .page-break { page-break-before: always; }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      margin: 0;
+      padding: 24px;
+    }
+    .container { max-width: 1100px; margin: 0 auto; }
+    .header {
+      background: var(--card-bg);
+      padding: 24px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    h1 { margin: 0 0 8px 0; font-size: 24px; color: #0f172a; }
+    .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 16px; font-size: 13px; }
+    .meta-item { background: #f1f5f9; padding: 10px 12px; border-radius: 4px; border: 1px solid #e2e8f0; }
+    
+    .metrics-bar { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+    .metric-card {
+      flex: 1;
+      min-width: 140px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.1s ease;
+    }
+    .metric-card:hover { transform: translateY(-2px); }
+    .metric-count { font-size: 24px; font-weight: bold; }
+    
+    .tab-section {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .tab-header {
+      padding: 14px 20px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+    .tab-content { padding: 16px; display: block; }
+    
+    .finding-card {
+      border: 1px solid var(--border);
+      border-left-width: 4px;
+      border-radius: 6px;
+      padding: 14px;
+      margin-bottom: 12px;
+      background: #fff;
+    }
+    .finding-card.Critical { border-left-color: var(--crit); }
+    .finding-card.High { border-left-color: var(--high); }
+    .finding-card.Medium { border-left-color: var(--med); }
+    .finding-card.Low { border-left-color: var(--low); }
+    .finding-card.Informational { border-left-color: var(--info); }
+    
+    .finding-title { font-weight: 600; font-size: 15px; margin-bottom: 6px; display: flex; justify-content: space-between; }
+    .badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; color: #fff; }
+    .badge.Critical { background-color: var(--crit); }
+    .badge.High { background-color: var(--high); }
+    .badge.Medium { background-color: var(--med); }
+    .badge.Low { background-color: var(--low); }
+    .badge.Informational { background-color: var(--info); }
+    .badge.Pass { background-color: var(--pass); }
+    .badge.Fail { background-color: var(--crit); }
+    .badge.Needs-Review { background-color: var(--med); }
+
+    pre.evidence-box {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+    .remediation-box {
+      background: #f0fdf4;
+      border-left: 3px solid var(--pass);
+      padding: 8px 12px;
+      font-size: 13px;
+      color: #166534;
+      margin-top: 8px;
+    }
+    .repro-box {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 10px;
+      border-radius: 4px;
+      margin: 8px 0;
+      font-size: 12px;
+    }
+    .evidence-preview img {
+      max-width: 320px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      margin-top: 6px;
+      display: block;
+    }
+    .filter-controls { margin-bottom: 16px; display: flex; gap: 8px; }
+    .filter-btn {
+      padding: 6px 14px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: white;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .filter-btn.active { background: #0f172a; color: white; }
+
+    table.perm-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.perm-table th { background: #f1f5f9; text-align: left; padding: 10px; border-bottom: 2px solid var(--border); }
+    table.perm-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+          <h1>TIR Mobile Application Security Audit</h1>
+          <div style="color: #64748b; font-size: 13px;">Enterprise OWASP MASVS & MASTG Compliance Verification</div>
+        </div>
+        <div style="text-align: right; font-size: 12px; color: #475569;">
+          <strong>Auditor Engine:</strong> {{ tool_version }}<br>
+          <strong>Standard:</strong> OWASP MASVS v2.0
+        </div>
+      </div>
+      
+      <div class="meta-grid">
+        <div class="meta-item"><strong>Package:</strong> {{ session.package_name }}</div>
+        <div class="meta-item"><strong>Version:</strong> {{ session.version_name }} (Code: {{ session.version_code }})</div>
+        <div class="meta-item"><strong>Target / Min SDK:</strong> {{ session.target_sdk }} / {{ session.min_sdk }}</div>
+        <div class="meta-item"><strong>File Size:</strong> {{ session.file_size }}</div>
+        <div class="meta-item"><strong>SHA-256 Hash:</strong> <code style="font-size: 11px; word-break: break-all;">{{ session.sha256 }}</code></div>
+        <div class="meta-item"><strong>Signing Cert:</strong> {{ session.cert_status }}</div>
+        <div class="meta-item"><strong>Cert Fingerprint:</strong> <code style="font-size: 11px; word-break: break-all;">{{ session.cert_fingerprint }}</code></div>
+        <div class="meta-item"><strong>Assessment Date:</strong> {{ date }}</div>
+      </div>
+    </div>
+
+    <!-- Executive Metrics Bar -->
+    <div class="metrics-bar">
+      <div class="metric-card" onclick="filterStatus('ALL', document.querySelector('.filter-btn'))">
+        <div class="metric-count" style="color: #0f172a;">{{ counts.Total }}</div>
+        <div style="font-size: 12px; color: #64748b;">Evaluated Controls</div>
+      </div>
+      <div class="metric-card" onclick="filterStatus('Fail', document.querySelectorAll('.filter-btn')[1])">
+        <div class="metric-count" style="color: var(--crit);">{{ counts.Fail }}</div>
+        <div style="font-size: 12px; color: #64748b;">Failed Checks</div>
+      </div>
+      <div class="metric-card" onclick="filterStatus('Needs Review', document.querySelectorAll('.filter-btn')[2])">
+        <div class="metric-count" style="color: var(--med);">{{ counts.Needs_Review }}</div>
+        <div style="font-size: 12px; color: #64748b;">Needs Review</div>
+      </div>
+      <div class="metric-card" onclick="filterStatus('Pass', document.querySelectorAll('.filter-btn')[3])">
+        <div class="metric-count" style="color: var(--pass);">{{ counts.Pass }}</div>
+        <div style="font-size: 12px; color: #64748b;">Passed Controls</div>
+      </div>
+      <div class="metric-card" onclick="filterBySeverity('High')">
+        <div class="metric-count" style="color: var(--high);">{{ counts.High }}</div>
+        <div style="font-size: 12px; color: #64748b;">High Severity</div>
+      </div>
+      <div class="metric-card" onclick="filterBySeverity('Medium')">
+        <div class="metric-count" style="color: var(--med);">{{ counts.Medium }}</div>
+        <div style="font-size: 12px; color: #64748b;">Medium Severity</div>
+      </div>
+    </div>
+
+    <!-- Prioritized Remediation Roadmap -->
+    {% if roadmap %}
+    <div class="tab-section">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>Prioritized Remediation Roadmap (Action Plan)</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content" style="font-size: 13px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+          <!-- Phase 1 -->
+          <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 12px;">
+            <div style="font-weight: 700; color: #991b1b; margin-bottom: 8px;">Phase 1: Immediate Triage (Critical & High)</div>
+            {% if roadmap.immediate %}
+              <ul style="padding-left: 18px; margin: 0;">
+                {% for item in roadmap.immediate %}
+                <li style="margin-bottom: 6px;">
+                  <strong>[{{ item.check_id }}]</strong> {{ item.title }}
+                </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div style="color: #64748b;">No immediate critical/high failures identified.</div>
+            {% endif %}
+          </div>
+
+          <!-- Phase 2 -->
+          <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 12px;">
+            <div style="font-weight: 700; color: #92400e; margin-bottom: 8px;">Phase 2: Next Release Cycle (Medium)</div>
+            {% if roadmap.short_term %}
+              <ul style="padding-left: 18px; margin: 0;">
+                {% for item in roadmap.short_term %}
+                <li style="margin-bottom: 6px;">
+                  <strong>[{{ item.check_id }}]</strong> {{ item.title }}
+                </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div style="color: #64748b;">No medium-severity blockers identified.</div>
+            {% endif %}
+          </div>
+
+          <!-- Phase 3 -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px;">
+            <div style="font-weight: 700; color: #334155; margin-bottom: 8px;">Phase 3: Architectural Hardening & Verification</div>
+            {% if roadmap.scheduled %}
+              <ul style="padding-left: 18px; margin: 0;">
+                {% for item in roadmap.scheduled[:6] %}
+                <li style="margin-bottom: 6px;">
+                  <strong>[{{ item.check_id }}]</strong> {{ item.title }}
+                </li>
+                {% endfor %}
+                {% if roadmap.scheduled | length > 6 %}
+                <li style="color: #64748b;">+ {{ roadmap.scheduled | length - 6 }} more items</li>
+                {% endif %}
+              </ul>
+            {% else %}
+              <div style="color: #64748b;">All architecture and manual checks clear.</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Permissions Inventory Table -->
+    {% if session.permissions %}
+    <div class="tab-section">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>Declared Application Permissions ({{ session.permissions | length }} permissions)</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content">
+        <table class="perm-table">
+          <thead>
+            <tr>
+              <th style="width: 32%;">Permission Name</th>
+              <th style="width: 18%;">Protection Level</th>
+              <th style="width: 50%;">Security Risk & Observation</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for perm in session.permissions %}
+            <tr>
+              <td><code>{{ perm.name }}</code></td>
+              <td>
+                <span class="badge {{ 'High' if 'Dangerous' in perm.protection_level else 'Informational' }}">
+                  {{ perm.protection_level }}
+                </span>
+              </td>
+              <td>
+                <strong>{{ perm.risk_analysis }}</strong>
+                <div style="margin-top: 4px; color: #64748b; font-size: 12px;">{{ perm.recommendation }}</div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Filter Buttons -->
+    <div class="filter-controls">
+      <button class="filter-btn active" onclick="filterStatus('ALL', this)">All Results</button>
+      <button class="filter-btn" onclick="filterStatus('Fail', this)">Failures Only</button>
+      <button class="filter-btn" onclick="filterStatus('Needs Review', this)">Needs Review</button>
+      <button class="filter-btn" onclick="filterStatus('Pass', this)">Passed Checks</button>
+    </div>
+
+    <!-- Grouped Categories & Detailed Cards -->
+    {% set categories = session.findings | groupby('category') %}
+    {% for category, items in categories %}
+    <div class="tab-section">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>{{ category }} ({{ items | length }} items)</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content">
+        {% for item in items %}
+        <div class="finding-card {{ item.severity.value }}" data-severity="{{ item.severity.value }}" data-status="{{ item.status.value }}">
+          <div class="finding-title">
+            <span>[{{ item.check_id }}] {{ item.title }}</span>
+            <span>
+              <span class="badge" style="background-color: {% if item.analysis_type == 'Dynamic Runtime' %}#0284c7{% else %}#475569{% endif %}; font-weight: 500;">
+                {{ item.analysis_type }}
+              </span>
+              <span class="badge {{ item.status.value | replace(' ', '-') }}">{{ item.status.value }}</span>
+              <span class="badge {{ item.severity.value }}">{{ item.severity.value }}</span>
+            </span>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px;">
+            {% if item.affected_component %}
+            <span style="background: #e2e8f0; color: #334155; padding: 2px 6px; border-radius: 3px;">
+              <strong>Target:</strong> <code>{{ item.affected_component }}</code>
+            </span>
+            {% endif %}
+
+            {% if item.cwe_id %}
+            <span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 3px;">
+              <strong>CWE:</strong> {{ item.cwe_id }}
+            </span>
+            {% endif %}
+
+            {% if item.masvs_ref %}
+            <span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 3px;">
+              <strong>OWASP:</strong> {{ item.masvs_ref }}
+            </span>
+            {% endif %}
+          </div>
+
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">{{ item.description }}</p>
+
+          {% if item.poc_command or item.reproduction_sequence %}
+          <div class="repro-box">
+            <div style="font-weight: 600; margin-bottom: 4px; color: #38bdf8;">Safe Proof of Concept (PoC) & CLI Reproduction:</div>
+            {% if item.poc_preconditions %}
+            <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">
+              <em>Preconditions:</em> {{ item.poc_preconditions }}
+            </div>
+            {% endif %}
+
+            {% if item.poc_command %}
+            <div style="font-size: 12px; margin-bottom: 4px;">
+              <code>$ {{ item.poc_command }}</code>
+            </div>
+            {% endif %}
+
+            {% if item.reproduction_sequence %}
+            <pre style="margin: 4px 0 0 0; font-family: monospace; font-size: 11px;"><code>{% for step in item.reproduction_sequence %}{{ step }}
+{% endfor %}</code></pre>
+            {% endif %}
+
+            {% if item.poc_observed %}
+            <div style="font-size: 11px; color: #cbd5e1; margin-top: 6px;">
+              <strong>Observed Impact:</strong> {{ item.poc_observed }}
+            </div>
+            {% endif %}
+          </div>
+          {% endif %}
+
+          {% if item.evidence_image %}
+          <div class="evidence-preview" style="margin-top: 8px;">
+            <strong style="font-size: 12px;">Visual Proof:</strong>
+            <img src="{{ item.evidence_image }}" alt="Evidence Screenshot">
+          </div>
+          {% endif %}
+
+          {% if item.evidence %}
+          <pre class="evidence-box">{{ item.evidence }}</pre>
+          {% endif %}
+
+          {% if item.remediation %}
+          <div class="remediation-box">
+            <strong>Remediation:</strong> {{ item.remediation }}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+
+    <!-- Assessment Methodology & Scope Limitations -->
+    <div class="tab-section page-break">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>Assessment Methodology, Testing Scope & Limitations</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content" style="font-size: 13px; line-height: 1.6; color: #475569;">
+        <h4 style="margin: 0 0 6px 0; color: #0f172a;">1. Assessment Methodology</h4>
+        <p style="margin: 0 0 12px 0;">
+          This security audit was conducted using the TIR Autonomous Mobile Security Engine adhering to the <strong>OWASP Mobile Application Security Verification Standard (MASVS v2.0)</strong> and Mobile Application Security Testing Guide (MASTG). The analysis includes static bytecode deconstruction, DEX opcode analysis, manifest configuration review, native library ELF parsing, and automated dynamic runtime instrumentation via ADB.
+        </p>
+
+        <h4 style="margin: 0 0 6px 0; color: #0f172a;">2. Scope Boundaries & Coverage</h4>
+        <p style="margin: 0 0 12px 0;">
+          Evaluation is strictly limited to client-side vulnerabilities residing within the provided application binary package (DEX classes, compiled native shared libraries, resources, and local data boundaries). Server-side APIs, third-party backend infrastructure, and external network end-nodes are excluded except where client-side TLS handshake and endpoint configuration parameters are statically or dynamically audited.
+        </p>
+
+        <h4 style="margin: 0 0 6px 0; color: #0f172a;">3. Limitations & Retesting Disclaimer</h4>
+        <p style="margin: 0;">
+          Static analysis identifies structural security weaknesses and pattern matches within application code and libraries; absence of findings does not guarantee complete absence of zero-day vulnerabilities. Runtime validation reflects the behavior observed on the tested target Android SDK platform and may vary across customized vendor OEM operating systems. Retesting is required following code refactoring or library updates to verify remediation effectiveness.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function toggleAccordion(header) {
+      const content = header.nextElementSibling;
+      const arrow = header.children[1];
+      if (content.style.display === "none") {
+        content.style.display = "block";
+        arrow.textContent = "▼";
+      } else {
+        content.style.display = "none";
+        arrow.textContent = "▲";
+      }
+    }
+
+    function filterStatus(status, btn) {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      document.querySelectorAll('.finding-card').forEach(card => {
+        if (status === 'ALL' || card.getAttribute('data-status') === status) {
+          card.style.display = 'block';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    function filterBySeverity(sev) {
+      document.querySelectorAll('.finding-card').forEach(card => {
+        if (sev === 'ALL' || card.getAttribute('data-severity') === sev) {
+          card.style.display = 'block';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+  </script>
+</body>
+</html>

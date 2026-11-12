@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TIR Mobile Security Verification Report</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --border: #e2e8f0;
+      --crit: #dc2626;
+      --high: #ea580c;
+      --med: #d97706;
+      --low: #ca8a04;
+      --info: #2563eb;
+      --pass: #16a34a;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      margin: 0;
+      padding: 24px;
+    }
+    .container { max-width: 1100px; margin: 0 auto; }
+    .header {
+      background: var(--card-bg);
+      padding: 24px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    h1 { margin: 0 0 8px 0; font-size: 24px; color: #0f172a; }
+    .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 16px; font-size: 14px; }
+    .meta-item { background: #f1f5f9; padding: 8px 12px; border-radius: 4px; }
+    
+    /* Metrics Toolbar */
+    .metrics-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .metric-card {
+      flex: 1;
+      min-width: 140px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.1s ease;
+    }
+    .metric-card:hover { transform: translateY(-2px); }
+    .metric-count { font-size: 24px; font-weight: bold; }
+    
+    /* Category Accordion */
+    .tab-section {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .tab-header {
+      padding: 14px 20px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+    .tab-content { padding: 16px; display: block; }
+    
+    /* Finding Card */
+    .finding-card {
+      border: 1px solid var(--border);
+      border-left-width: 4px;
+      border-radius: 6px;
+      padding: 14px;
+      margin-bottom: 12px;
+      background: #fff;
+    }
+    .finding-card.Critical { border-left-color: var(--crit); }
+    .finding-card.High { border-left-color: var(--high); }
+    .finding-card.Medium { border-left-color: var(--med); }
+    .finding-card.Low { border-left-color: var(--low); }
+    .finding-card.Informational { border-left-color: var(--info); }
+    
+    .finding-title { font-weight: 600; font-size: 15px; margin-bottom: 6px; display: flex; justify-content: space-between; }
+    .badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; color: #fff; }
+    .badge.Critical { background-color: var(--crit); }
+    .badge.High { background-color: var(--high); }
+    .badge.Medium { background-color: var(--med); }
+    .badge.Low { background-color: var(--low); }
+    .badge.Informational { background-color: var(--info); }
+    .badge.Pass { background-color: var(--pass); }
+    .badge.Fail { background-color: var(--crit); }
+    .badge.Needs-Review { background-color: var(--med); }
+
+    pre.evidence-box {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+    .remediation-box {
+      background: #f0fdf4;
+      border-left: 3px solid var(--pass);
+      padding: 8px 12px;
+      font-size: 13px;
+      color: #166534;
+      margin-top: 8px;
+    }
+    .filter-controls { margin-bottom: 16px; display: flex; gap: 8px; }
+    .filter-btn {
+      padding: 6px 14px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: white;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .filter-btn.active { background: #0f172a; color: white; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>TIR Mobile Application Security Audit</h1>
+      <div class="meta-grid">
+        <div class="meta-item"><strong>Package:</strong> jakhar.aseem.diva</div>
+        <div class="meta-item"><strong>Version:</strong> Dynamic Run</div>
+        <div class="meta-item"><strong>Timestamp:</strong> 2026-11-10 17:05:10</div>
+        <div class="meta-item"><strong>Scope:</strong> OWASP MASVS (13 Workspaces)</div>
+      </div>
+    </div>
+
+    <!-- Summary Metrics -->
+    <div class="metrics-bar">
+      <div class="metric-card" onclick="filterBySeverity('ALL')">
+        <div class="metric-count" style="color: #0f172a;">14</div>
+        <div style="font-size: 12px; color: #64748b;">Total Evaluated</div>
+      </div>
+      <div class="metric-card" onclick="filterBySeverity('Critical')">
+        <div class="metric-count" style="color: var(--crit);">0</div>
+        <div style="font-size: 12px; color: #64748b;">Critical</div>
+      </div>
+      <div class="metric-card" onclick="filterBySeverity('High')">
+        <div class="metric-count" style="color: var(--high);">0</div>
+        <div style="font-size: 12px; color: #64748b;">High</div>
+      </div>
+      <div class="metric-card" onclick="filterBySeverity('Medium')">
+        <div class="metric-count" style="color: var(--med);">1</div>
+        <div style="font-size: 12px; color: #64748b;">Medium</div>
+      </div>
+      <div class="metric-card" onclick="filterBySeverity('Low')">
+        <div class="metric-count" style="color: var(--low);">0</div>
+        <div style="font-size: 12px; color: #64748b;">Low</div>
+      </div>
+    </div>
+    
+    <!-- Agentic AI Autonomous Assessment & Remediation Block -->
+    
+
+    <!-- Filter Buttons -->
+    <div class="filter-controls">
+      <button class="filter-btn active" onclick="filterStatus('ALL', this)">All Results</button>
+      <button class="filter-btn" onclick="filterStatus('Fail', this)">Failures Only</button>
+      <button class="filter-btn" onclick="filterStatus('Needs Review', this)">Needs Review</button>
+      <button class="filter-btn" onclick="filterStatus('Pass', this)">Passed Checks</button>
+    </div>
+
+    <!-- Grouped Categories -->
+    
+    
+    <div class="tab-section">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>MASVS-AUTH (2 items)</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content">
+        
+        <div class="finding-card Informational" data-severity="Informational" data-status="Pass">
+          <div class="finding-title">
+            <span>[DYN-027] Activity Access Control Evaluated</span>
+            <span>
+              <span class="badge Pass">Pass</span>
+              <span class="badge Informational">Informational</span>
+            </span>
+          </div>
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">Sampled components did not allow unauthenticated foreground execution without redirects or guards.</p>
+          
+          <pre class="evidence-box">Tested activities successfully diverted or handled unauthenticated invocations.</pre>
+          
+          
+        </div>
+        
+        <div class="finding-card Informational" data-severity="Informational" data-status="Pass">
+          <div class="finding-title">
+            <span>[DYN-036] Local Sandbox Session Invalidation Baseline Clean</span>
+            <span>
+              <span class="badge Pass">Pass</span>
+              <span class="badge Informational">Informational</span>
+            </span>
+          </div>
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">No persistent session tokens found lingering in storage directories.</p>
+          
+          <pre class="evidence-box">Zero session token matches in sandbox files.</pre>
+          
+          
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="tab-section">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>MASVS-PLATFORM (3 items)</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content">
+        
+        <div class="finding-card Medium" data-severity="Medium" data-status="Fail">
+          <div class="finding-title">
+            <span>[DYN-030] Missing Screen Capture Protection: MainActivity</span>
+            <span>
+              <span class="badge Fail">Fail</span>
+              <span class="badge Medium">Medium</span>
+            </span>
+          </div>
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">Activity 'MainActivity' does not set FLAG_SECURE. Sensitive UI fields remain exposed to background screenshot captures and task switchers.</p>
+          
+          <pre class="evidence-box">Screen snapshot captured via screencap: -rw-rw-r-- 1 root root 258958 2026-11-10 17:04 /data/local/tmp/tir_snap_1794310497.png</pre>
+          
+          
+          <div class="remediation-box">
+            <strong>Remediation:</strong> Add getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE) in onCreate().
+          </div>
+          
+        </div>
+        
+        <div class="finding-card Informational" data-severity="Informational" data-status="Needs Review">
+          <div class="finding-title">
+            <span>[DYN-033] WebView Runtime Inspection: Target Not Running</span>
+            <span>
+              <span class="badge Needs-Review">Needs Review</span>
+              <span class="badge Informational">Informational</span>
+            </span>
+          </div>
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">Unable to inspect WebView runtime status because the process is not active.</p>
+          
+          <pre class="evidence-box">No active PID found.</pre>
+          
+          
+        </div>
+        
+        <div class="finding-card Informational" data-severity="Informational" data-status="Pass">
+          <div class="finding-title">
+            <span>[DYN-037] Background Transition and Task Snapshot Behavior Inspected</span>
+            <span>
+              <span class="badge Pass">Pass</span>
+              <span class="badge Informational">Informational</span>
+            </span>
+          </div>
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">Application transitioned to background state via KEYCODE_HOME. Process status and task snapshots checked.</p>
+          
+          <pre class="evidence-box">App PID in background: Suspended/Cached
+Snapshot check result: total 392
+drwx------  2 system system  4096 2026-11-04 11:15 .
+drwxrwx--- 10 system system  4096 2026-11-06 09:10 ..
+-rw-------  1 system system 65984.</pre>
+          
+          
+          <div class="remediation-box">
+            <strong>Remediation:</strong> Enforce WindowManager.LayoutParams.FLAG_SECURE on sensitive windows to obscure previews in the task switcher.
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="tab-section">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>MASVS-RESILIENCE (4 items)</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content">
+        
+        <div class="finding-card Medium" data-severity="Medium" data-status="Needs Review">
+          <div class="finding-title">
+            <span>[ROT-024] Device Operating Under Insecure Global System Properties</span>
+            <span>
+              <span class="badge Needs-Review">Needs Review</span>
+              <span class="badge Medium">Medium</span>
+            </span>
+          </div>
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">The test execution device runs on a development or rooted build.</p>
+          
+          <pre class="evidence-box">ro.debuggable=1 (Device kernel allows global debugging)</pre>
+          
+          
+          <div class="remediation-box">
+            <strong>Remediation:</strong> Ensure client releases disable sensitive operations when running under custom rooted build properties.
+          </div>
+          
+        </div>
+        
+        <div class="finding-card Informational" data-severity="Informational" data-status="Pass">
+          <div class="finding-title">
+            <span>[ROT-021] Root Detection Activated / Application Terminated</span>
+            <span>
+              <span class="badge Pass">Pass</span>
+              <span class="badge Informational">Informational</span>
+            </span>
+          </div>
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">The application refused to launch or immediately terminated upon startup on a rooted device environment.</p>
+          
+          <pre class="evidence-box">Device root status: Root binaries detected (/system/bin/su). Process exited immediately.</pre>
+          
+          
+        </div>
+        
+        <div class="finding-card Low" data-severity="Low" data-status="Needs Review">
+          <div class="finding-title">
+            <span>[ROT-022] Root Bypass Resistance: Process Inactive</span>
+            <span>
+              <span class="badge Needs-Review">Needs Review</span>
+              <span class="badge Low">Low</span>
+            </span>
+          </div>
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">Target process is not running. Launch application to evaluate ptrace status.</p>
+          
+          <pre class="evidence-box">No active PID found.</pre>
+          
+          
+        </div>
+        
+        <div class="finding-card Informational" data-severity="Informational" data-status="Needs Review">
+          <div class="finding-title">
+            <span>[ROT-023] Process Memory Inspection: Target Inactive</span>
+            <span>
+              <span class="badge Needs-Review">Needs Review</span>
+              <span class="badge Informational">Informational</span>
+            </span>
+          </div>
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">Cannot inspect process memory layout because the target application is not running.</p>
+          
+          <pre class="evidence-box">No active PID detected.</pre>
+          
+          
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="tab-section">
+      <div class="tab-header" onclick="toggleAccordion(this)">
+        <span>MASVS-STORAGE (5 items)</span>
+        <span>▼</span>
+      </div>
+      <div class="tab-content">
+        
+        <div class="finding-card Informational" data-severity="Informational" data-status="Pass">
+          <div class="finding-title">
+            <span>[ROT-020] Sandbox File Permission Isolation Confirmed</span>
+            <span>
+              <span class="badge Pass">Pass</span>
+              <span class="badge Informational">Informational</span>
+            </span>
+          </div>
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">Application sandbox files strictly enforce private user UID/GID ownership.</p>
+          
+          <pre class="evidence-box">All files under /data/data/jakhar.aseem.diva restrict access to application UID.</pre>
+          
+          
+        </div>
+        
+        <div class="finding-card Informational" data-severity="Informational" data-status="Pass">
+          <div class="finding-title">
+            <span>[ROT-026] Private App Data Extraction Guarded Against Unprivileged Access</span>
+            <span>
+              <span class="badge Pass">Pass</span>
+              <span class="badge Informational">Informational</span>
+            </span>
+          </div>
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">run-as extraction is rejected by the Android package manager. Private storage is shielded from non-root extraction channels.</p>
+          
+          <pre class="evidence-box">run-as execution result: Rejected (not debuggable).</pre>
+          
+          
+        </div>
+        
+        <div class="finding-card Informational" data-severity="Informational" data-status="Pass">
+          <div class="finding-title">
+            <span>[DYN-029] Clipboard Buffer Clean</span>
+            <span>
+              <span class="badge Pass">Pass</span>
+              <span class="badge Informational">Informational</span>
+            </span>
+          </div>
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">No plaintext authentication tokens or credentials detected in the system clipboard.</p>
+          
+          <pre class="evidence-box">Clipboard buffer empty or free of targeted keywords.</pre>
+          
+          
+        </div>
+        
+        <div class="finding-card Informational" data-severity="Informational" data-status="Pass">
+          <div class="finding-title">
+            <span>[DYN-028] Logcat Session Token Residue Check Passed</span>
+            <span>
+              <span class="badge Pass">Pass</span>
+              <span class="badge Informational">Informational</span>
+            </span>
+          </div>
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">No plaintext authentication or bearer tokens were observed in the recent process log buffer.</p>
+          
+          <pre class="evidence-box">Checked 500 lines of process logcat buffer without matching token patterns.</pre>
+          
+          
+        </div>
+        
+        <div class="finding-card Informational" data-severity="Informational" data-status="Pass">
+          <div class="finding-title">
+            <span>[DYN-035] Local Storage Inspection Passed</span>
+            <span>
+              <span class="badge Pass">Pass</span>
+              <span class="badge Informational">Informational</span>
+            </span>
+          </div>
+          <p style="font-size: 13px; margin: 4px 0 8px 0;">No obvious plaintext credential strings or unprotected databases detected in primary sandbox directories.</p>
+          
+          <pre class="evidence-box">Checked /data/data/jakhar.aseem.diva/shared_prefs/ and /data/data/jakhar.aseem.diva/databases/.</pre>
+          
+          
+        </div>
+        
+      </div>
+    </div>
+    
+  </div>
+
+  <script>
+    function toggleAccordion(header) {
+      const content = header.nextElementSibling;
+      const arrow = header.children[1];
+      if (content.style.display === "none") {
+        content.style.display = "block";
+        arrow.textContent = "▼";
+      } else {
+        content.style.display = "none";
+        arrow.textContent = "▲";
+      }
+    }
+
+    function filterStatus(status, btn) {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.finding-card').forEach(card => {
+        if (status === 'ALL' || card.getAttribute('data-status') === status) {
+          card.style.display = 'block';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    function filterBySeverity(sev) {
+      document.querySelectorAll('.finding-card').forEach(card => {
+        if (sev === 'ALL' || card.getAttribute('data-severity') === sev) {
+          card.style.display = 'block';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+  </script>
+</body>
+</html>
