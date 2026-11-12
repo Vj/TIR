@@ -47,7 +47,8 @@ def correlate_findings(static_findings: List[Finding], dynamic_findings: List[Fi
         if not matches:
             unmatched_dynamic.append(dynamic.model_copy(update={
                 "verification_status": VerificationStatus.DYNAMICALLY_CONFIRMED
-                if dynamic.status.value == "Fail" else VerificationStatus.NOT_OBSERVED,
+                if dynamic.status.value == "Fail" else VerificationStatus.NOT_OBSERVED
+                if dynamic.status.value == "Pass" else VerificationStatus.UNVERIFIED,
                 "confidence": Confidence.HIGH if dynamic.status.value == "Fail" else dynamic.confidence,
                 "confidence_score": 0.9 if dynamic.status.value == "Fail" else max(dynamic.confidence_score, 0.55),
             }))
@@ -75,6 +76,8 @@ def correlate_findings(static_findings: List[Finding], dynamic_findings: List[Fi
         runtime_status = (
             VerificationStatus.DYNAMICALLY_CONFIRMED
             if confirmed else VerificationStatus.NOT_OBSERVED
+            if all(item.status.value == "Pass" for item in evidence)
+            else VerificationStatus.UNVERIFIED
         )
         combined = []
         for item in evidence:
@@ -93,7 +96,7 @@ def correlate_findings(static_findings: List[Finding], dynamic_findings: List[Fi
             "analysis_type": AnalysisType.HYBRID,
             "verification_status": runtime_status,
             "confidence": Confidence.HIGH if confirmed else Confidence.MEDIUM,
-            "confidence_score": 0.9 if confirmed else 0.45,
+            "confidence_score": 0.9 if confirmed else 0.45 if runtime_status == VerificationStatus.NOT_OBSERVED else 0.5,
             "evidence": text_evidence,
             "metadata": {**static.metadata, "correlated_dynamic_findings": combined},
         }))
