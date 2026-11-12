@@ -140,3 +140,15 @@ TIR evaluates checks against predefined severity thresholds:
 Critical / High: Direct integrity, cryptographic, or storage failures requiring immediate remediation before production deployment.
 Medium / Low: Hardening oversights and defense-in-depth gaps.
 Needs Review: Guided items (such as business logic workflows, external third-party domains, and biometrics) requiring manual analyst validation.
+
+## Modular dynamic shell checks
+
+The `dynamic` command now runs bundled, read-only Android shell checks through the selected ADB device. The first checks inspect the running app's `TracerPid` and the installed package's `DEBUGGABLE` flag. Script files live in `scripts/dynamic/`; the Python runner allow-lists script names, validates the package identifier, applies a timeout, and maps results into the standard TIR finding model.
+
+Start the target app on the test device before the audit so process-level checks can collect evidence:
+
+```sh
+python app.py dynamic --package com.example.app --device DEVICE_SERIAL --duration 25
+```
+
+The scripts are read-only and do not install packages, alter device settings, or modify app data. Results that cannot be established (for example, when the app is not running or the package flags are unavailable) are reported as needing analyst review.
