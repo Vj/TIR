@@ -152,3 +152,26 @@ python app.py dynamic --package com.example.app --device DEVICE_SERIAL --duratio
 ```
 
 The scripts are read-only and do not install packages, alter device settings, or modify app data. Results that cannot be established (for example, when the app is not running or the package flags are unavailable) are reported as needing analyst review.
+
+
+## MASVS v2 / MASTG v2 analysis and correlation
+
+TIR writes versioned findings with MASVS controls, MASWE weaknesses, MASTG test references and status, numeric confidence, and verification state. The checked-in `standards/owasp_mobile_catalog.json` records current versus placeholder tests; mappings are evidence references and do not claim OWASP certification.
+
+Static APK analysis now includes:
+
+- Jetpack DataStore and Jetpack Security Crypto API reference detection. These produce review items; a library reference alone does not prove that sensitive values are stored or that a keyset is misconfigured.
+- ELF header and program-header review for packaged `.so` files, including executable stack, stack-canary imports, RELRO, and debug-section indicators. Native string scanning reports high-signal secret candidates for analyst review.
+- Manifest-derived exported component and deep-link targets, including HTTPS App Link `autoVerify` state; PendingIntent and SDK package fingerprints are reported conservatively.
+- A versioned `dynamic_targets.json` handoff. The APK scanner emits it during static scans.
+
+Examples:
+
+```sh
+python app.py scan --apk target.apk --targets-output dynamic_targets.json --output report.pdf
+python app.py dynamic --apk target.apk --package com.example.app --targets dynamic_targets.json --device DEVICE_SERIAL --duration 25 --probe-ipc --explore --max-ui-actions 12
+```
+
+Dynamic correlation runs the static scan when `--apk` is supplied, validates the target package, and combines matching evidence. Runtime non-observation is kept separate from proven unreachability. UI exploration is opt-in, bounded to 1–40 taps, skips unlabeled controls and controls with common destructive/action labels, enters no text, and never records sandbox file contents. The differential snapshot stores only paths and SHA-256 digests; app-private access may require a debuggable test build, and external-storage coverage depends on Android version and device policy.
+
+SBOM package fingerprints are inventory hints: TIR does not yet establish exact versions for every bundled library or query a vulnerability database. Call-graph reachability is not yet used to suppress findings. Frida-based hooks and automatic mitmproxy orchestration are not started by these commands; use the existing runtime checks and an analyst-configured test environment for those cases. No automated MASVS compliance claim is made.
