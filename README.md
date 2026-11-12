@@ -172,6 +172,23 @@ python app.py scan --apk target.apk --targets-output dynamic_targets.json --outp
 python app.py dynamic --apk target.apk --package com.example.app --targets dynamic_targets.json --device DEVICE_SERIAL --duration 25 --probe-ipc --explore --max-ui-actions 12
 ```
 
+Supply one or more explicit deep links to exercise after the static scan validates their scheme/host. Flow capture and Frida observation are optional:
+
+```sh
+python app.py dynamic --apk target.apk --package com.example.app --deep-link 'https://example.com/open' --frida-tls --mitm-flows mitm_metadata.jsonl
+```
+
+For network capture, start an analyst-managed mitmproxy instance separately; TIR does not change device proxy or CA settings. Example for PowerShell:
+
+```powershell
+$env:TIR_MITM_JSONL = (Resolve-Path .).Path + '\\mitm_metadata.jsonl'
+mitmdump -s .\\scripts\\dynamic\\mitm_export.py
+```
+
+The exporter records only scheme, host, method, response status, and TLS version. It excludes request/response bodies, headers, paths, query strings, and cookies. Proxy flows are not automatically attributed to the target package, so use a dedicated test device and confirm attribution before treating an observation as a finding.
+
+Install Frida's Python bindings compatible with the device's Frida server before using `--frida-tls`. The observer attaches to an already-running process and records TLS configuration API events; it does not bypass certificate checks. Optional call-graph annotation requires an Androguard version that exposes `Analysis.get_call_graph`; unavailable or unmatched reachability remains unknown and never suppresses a finding.
+
 Dynamic correlation runs the static scan when `--apk` is supplied, validates the target package, and combines matching evidence. Runtime non-observation is kept separate from proven unreachability. UI exploration is opt-in, bounded to 1–40 taps, skips unlabeled controls and controls with common destructive/action labels, enters no text, and never records sandbox file contents. The differential snapshot stores only paths and SHA-256 digests; app-private access may require a debuggable test build, and external-storage coverage depends on Android version and device policy.
 
-SBOM package fingerprints are inventory hints: TIR does not yet establish exact versions for every bundled library or query a vulnerability database. Call-graph reachability is not yet used to suppress findings. Frida-based hooks and automatic mitmproxy orchestration are not started by these commands; use the existing runtime checks and an analyst-configured test environment for those cases. No automated MASVS compliance claim is made.
+SBOM package fingerprints are inventory hints: TIR extracts Maven metadata when packaged but does not establish exact versions for every bundled library or query a vulnerability database. Call-graph reachability is optional and annotates component findings only when the analyzer can prove a match; it never suppresses findings. Frida and proxy capture are optional adapters and require an analyst-configured test environment. No automated MASVS compliance claim is made.
