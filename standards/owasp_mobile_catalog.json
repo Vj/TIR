@@ -4,76 +4,209 @@
   "source": "https://mas.owasp.org/MASTG/tests/",
   "entries": {
     "TIR-STORE-DATASTORE": {
-      "masvs": ["MASVS-STORAGE-1", "MASVS-STORAGE-2", "MASVS-CRYPTO-2"],
-      "maswe": ["MASWE-0001"],
-      "mastg": [{"id": "MASTG-TEST-0305", "status": "placeholder"}]
+      "masvs": [
+        "MASVS-STORAGE-1",
+        "MASVS-STORAGE-2",
+        "MASVS-CRYPTO-2"
+      ],
+      "maswe": [
+        "MASWE-0001"
+      ],
+      "mastg": [
+        {
+          "id": "MASTG-TEST-0305",
+          "status": "placeholder"
+        }
+      ]
     },
     "TIR-STORE-SHAREDPREFS": {
-      "masvs": ["MASVS-STORAGE-1"],
-      "maswe": ["MASWE-0001"],
-      "mastg": [{"id": "MASTG-TEST-0287", "status": "current"}]
+      "masvs": [
+        "MASVS-STORAGE-1"
+      ],
+      "maswe": [
+        "MASWE-0001"
+      ],
+      "mastg": [
+        {
+          "id": "MASTG-TEST-0287",
+          "status": "current"
+        }
+      ]
     },
     "TIR-STORE-SANDBOX": {
-      "masvs": ["MASVS-STORAGE-1"],
-      "maswe": ["MASWE-0001"],
-      "mastg": [{"id": "MASTG-TEST-0207", "status": "current"}]
+      "masvs": [
+        "MASVS-STORAGE-1"
+      ],
+      "maswe": [
+        "MASWE-0001"
+      ],
+      "mastg": [
+        {
+          "id": "MASTG-TEST-0207",
+          "status": "current"
+        }
+      ]
     },
     "TIR-NATIVE-HARDENING": {
-      "masvs": ["MASVS-CODE-3"],
-      "maswe": ["MASWE-0045"],
+      "masvs": [
+        "MASVS-CODE-3"
+      ],
+      "maswe": [
+        "MASWE-0045"
+      ],
       "mastg": [
-        {"id": "MASTG-TEST-0223", "status": "current"},
-        {"id": "MASTG-TEST-0288", "status": "current"}
+        {
+          "id": "MASTG-TEST-0223",
+          "status": "current"
+        },
+        {
+          "id": "MASTG-TEST-0288",
+          "status": "current"
+        }
       ]
     },
     "TIR-NATIVE-SECRETS": {
-      "masvs": ["MASVS-STORAGE-1"],
-      "maswe": ["MASWE-0004"],
+      "masvs": [
+        "MASVS-STORAGE-1"
+      ],
+      "maswe": [
+        "MASWE-0004"
+      ],
       "mastg": []
     },
     "TIR-DEEPLINK": {
-      "masvs": ["MASVS-PLATFORM-1", "MASVS-PLATFORM-2"],
-      "maswe": ["MASWE-0029"],
+      "masvs": [
+        "MASVS-PLATFORM-1",
+        "MASVS-PLATFORM-2"
+      ],
+      "maswe": [
+        "MASWE-0029"
+      ],
       "mastg": [
-        {"id": "MASTG-TEST-0393", "status": "current"},
-        {"id": "MASTG-TEST-0394", "status": "current"}
+        {
+          "id": "MASTG-TEST-0393",
+          "status": "current"
+        },
+        {
+          "id": "MASTG-TEST-0394",
+          "status": "current"
+        }
       ]
     },
     "TIR-PENDINGINTENT": {
-      "masvs": ["MASVS-PLATFORM-1"],
-      "maswe": ["MASWE-0032"],
-      "mastg": [{"id": "MASTG-TEST-0381", "status": "current"}]
+      "masvs": [
+        "MASVS-PLATFORM-1"
+      ],
+      "maswe": [
+        "MASWE-0032"
+      ],
+      "mastg": [
+        {
+          "id": "MASTG-TEST-0381",
+          "status": "current"
+        }
+      ]
     },
     "TIR-DEPENDENCY-SBOM": {
-      "masvs": ["MASVS-CODE-4"],
-      "maswe": ["MASWE-0044"],
+      "masvs": [
+        "MASVS-CODE-4"
+      ],
+      "maswe": [
+        "MASWE-0044"
+      ],
       "mastg": [
-        {"id": "MASTG-TEST-0272", "status": "current"},
-        {"id": "MASTG-TEST-0274", "status": "current"}
+        {
+          "id": "MASTG-TEST-0272",
+          "status": "current"
+        },
+        {
+          "id": "MASTG-TEST-0274",
+          "status": "current"
+        }
       ]
     },
     "TIR-IPC-ACTIVITY": {
-      "masvs": ["MASVS-PLATFORM-1"],
-      "maswe": ["MASWE-0032"],
-      "mastg": [{"id": "MASTG-TEST-0364", "status": "current"}]
+      "masvs": [
+        "MASVS-PLATFORM-1"
+      ],
+      "maswe": [
+        "MASWE-0032"
+      ],
+      "mastg": [
+        {
+          "id": "MASTG-TEST-0364",
+          "status": "current"
+        }
+      ]
     },
     "TIR-IPC-SERVICE": {
-      "masvs": ["MASVS-PLATFORM-1"],
-      "maswe": ["MASWE-0032"],
-      "mastg": [{"id": "MASTG-TEST-0365", "status": "current"}]
+      "masvs": [
+        "MASVS-PLATFORM-1"
+      ],
+      "maswe": [
+        "MASWE-0032"
+      ],
+      "mastg": [
+        {
+          "id": "MASTG-TEST-0365",
+          "status": "current"
+        }
+      ]
     },
     "TIR-IPC-RECEIVER": {
-      "masvs": ["MASVS-PLATFORM-1"],
-      "maswe": ["MASWE-0032"],
-      "mastg": [{"id": "MASTG-TEST-0366", "status": "current"}]
+      "masvs": [
+        "MASVS-PLATFORM-1"
+      ],
+      "maswe": [
+        "MASWE-0032"
+      ],
+      "mastg": [
+        {
+          "id": "MASTG-TEST-0366",
+          "status": "current"
+        }
+      ]
     },
     "TIR-IPC-PROVIDER": {
-      "masvs": ["MASVS-PLATFORM-1"],
-      "maswe": ["MASWE-0032"],
+      "masvs": [
+        "MASVS-PLATFORM-1"
+      ],
+      "maswe": [
+        "MASWE-0032"
+      ],
       "mastg": [
-        {"id": "MASTG-TEST-0355", "status": "current"},
-        {"id": "MASTG-TEST-0356", "status": "current"}
+        {
+          "id": "MASTG-TEST-0355",
+          "status": "current"
+        },
+        {
+          "id": "MASTG-TEST-0356",
+          "status": "current"
+        }
       ]
+    },
+    "TIR-RUNTIME-FILESYSTEM": {
+      "masvs": [
+        "MASVS-STORAGE-1"
+      ],
+      "maswe": [
+        "MASWE-0001"
+      ],
+      "mastg": [
+        {
+          "id": "MASTG-TEST-0207",
+          "status": "current"
+        }
+      ]
+    },
+    "TIR-UI-COVERAGE": {
+      "masvs": [
+        "MASVS-PLATFORM-1"
+      ],
+      "maswe": [
+        "MASWE-0032"
+      ],
+      "mastg": []
     }
   }
 }
