@@ -57,6 +57,7 @@ class Finding(BaseModel):
     mastg_refs: List[str] = Field(default_factory=list)
     verification_status: VerificationStatus = VerificationStatus.STATIC_ONLY
     confidence: Confidence = Confidence.MEDIUM
+    confidence_score: float = Field(default=0.5, ge=0.0, le=1.0)
     coverage: Dict[str, Any] = Field(default_factory=dict)
     correlation_key: Optional[str] = None
     rule_catalog_version: str = "owasp-mastg-v2.0.0"
