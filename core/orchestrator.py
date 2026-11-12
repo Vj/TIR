@@ -219,7 +219,7 @@ class TIROrchestrator:
         os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as stream:
             json.dump(self.dynamic_targets, stream, indent=2, sort_keys=True)
-            stream.write("\\n")
+            stream.write("\n")
         return output_path
 
     def generate_pdf_report(self, session: AuditSession, output_pdf_path: str):
