@@ -7,6 +7,7 @@ import hashlib
 import re
 import struct
 import zipfile
+from urllib.parse import urlsplit
 import xml.etree.ElementTree as ET
 from typing import Any, Dict, List, Tuple
 
@@ -162,6 +163,39 @@ class ModernAndroidAnalysisEngine:
                 dex_names = sorted(n for n in names if re.fullmatch(r"classes(?:\d+)?\.dex", n))
                 dex_text = {name: self._safe_strings(apk.read(name)) for name in dex_names}
                 all_dex = "\n".join(dex_text.values())
+                endpoint_rows = {}
+                url_pattern = re.compile(r"https?://[A-Za-z0-9.-]+(?::[0-9]{1,5})?")
+                for dex_name, dex_content in dex_text.items():
+                    for candidate in url_pattern.findall(dex_content):
+                        try:
+                            parsed = urlsplit(candidate)
+                            if parsed.hostname:
+                                endpoint_rows[(parsed.scheme.lower(), parsed.hostname.lower())] = dex_name
+                        except ValueError:
+                            continue
+                targets["network_endpoints"] = [
+                    {"scheme": scheme, "host": host, "source": dex_name}
+                    for (scheme, host), dex_name in sorted(endpoint_rows.items())
+                ]
+
+                for name in names:
+                    if not (name.startswith("META-INF/maven/") and name.endswith("/pom.properties")):
+                        continue
+                    try:
+                        properties = {}
+                        for line in apk.read(name).decode("utf-8", errors="replace").splitlines():
+                            if "=" in line and not line.lstrip().startswith("#"):
+                                key, value = line.split("=", 1)
+                                properties[key.strip()] = value.strip()
+                        artifact = properties.get("artifactId")
+                        if artifact:
+                            targets["sbom"].append({
+                                "name": f"{properties.get('groupId', 'unknown')}:{artifact}",
+                                "version": properties.get("version"),
+                                "source": name,
+                            })
+                    except (OSError, UnicodeError, KeyError):
+                        continue
 
                 package = ""
                 try:
