@@ -111,10 +111,14 @@ class ModernAndroidAnalysisEngine:
                 try:
                     import pyaxmlparser
                     decoded = pyaxmlparser.APK(self.apk_path).get_android_manifest_xml()
-                    if hasattr(decoded, "getroottree"):
+                    if isinstance(decoded, (str, bytes)):
+                        manifest = ET.fromstring(decoded)
+                    elif hasattr(decoded, "getroot"):
+                        manifest = ET.fromstring(ET.tostring(decoded.getroot()))
+                    elif hasattr(decoded, "getroottree"):
                         manifest = ET.fromstring(ET.tostring(decoded))
                     else:
-                        manifest = ET.fromstring(decoded)
+                        raise TypeError("Unsupported decoded manifest representation")
                     package = manifest.attrib.get("package", "")
                     targets["package_name"] = package
                     findings.extend(self._audit_manifest(manifest, targets))
@@ -132,6 +136,14 @@ class ModernAndroidAnalysisEngine:
                         remediation="Confirm the APK manifest is readable and rerun the static scan.",
                     ))
 
+                targets["runtime_hooks"] = {
+                    "trust_manager_markers": [marker for marker in (
+                        "X509TrustManager", "HostnameVerifier", "TrustManagerFactory", "CertificatePinner"
+                    ) if marker in all_dex],
+                    "crypto_api_markers": [marker for marker in (
+                        "javax/crypto/Cipher", "SecretKeySpec", "IvParameterSpec", "Mac;->getInstance"
+                    ) if marker in all_dex],
+                }
                 findings.extend(self._audit_storage(all_dex, names))
                 findings.extend(self._audit_pending_intents(all_dex, dex_names))
                 native_findings, native_hashes = self._audit_native(apk, names)
@@ -186,7 +198,9 @@ class ModernAndroidAnalysisEngine:
                 name = element.attrib.get(ANDROID_NS + "name", "")
                 exported = element.attrib.get(ANDROID_NS + "exported")
                 has_filter = bool(element.findall("intent-filter"))
-                is_exported = exported == "true" or (exported is None and has_filter)
+                # Only explicit exported=true is treated as a safe dynamic seed.
+                # Missing values depend on Android version/targetSdk and are not assumed exported.
+                is_exported = exported == "true"
                 if name and is_exported:
                     bucket = {"activity": "activities", "activity-alias": "activities",
                               "service": "services", "receiver": "receivers",
