@@ -20,8 +20,11 @@ class DeepLinkRuntimeEngine:
     def invoke(self, uri: str, targets: List[Dict[str, Any]]) -> Finding:
         if not isinstance(uri, str) or not SAFE_URI.fullmatch(uri) or any(ch in uri for ch in ('"', "\\", "`", "\n", "\r")):
             return self._finding(uri, False, "URI contains unsupported characters and was not sent to ADB.")
-        parsed = urlsplit(uri)
-        scheme, host = parsed.scheme.lower(), (parsed.hostname or "").lower()
+        try:
+            parsed = urlsplit(uri)
+            scheme, host = parsed.scheme.lower(), (parsed.hostname or "").lower()
+        except ValueError:
+            return self._finding("[invalid URI]", False, "URI parsing failed.")
         allowed = False
         for target in targets if isinstance(targets, list) else []:
             if not isinstance(target, dict) or target.get("exported") is not True:
@@ -52,11 +55,7 @@ class DeepLinkRuntimeEngine:
 
     @staticmethod
     def _finding(target: str, sent: bool, detail: str) -> Finding:
-        try:
-            parsed = urlsplit(target)
-            safe_target = f"{parsed.scheme}://{parsed.hostname}" if parsed.hostname else f"{parsed.scheme}:"
-        except ValueError:
-            safe_target = "[invalid URI]"
+        safe_target = target
         return Finding(
             check_id="TIR-DEEPLINK-RUNTIME",
             title="Manifest-seeded deep-link invocation",
