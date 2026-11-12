@@ -6,11 +6,9 @@ from core.standards import enrich_findings
 
 
 def _keys(finding: Finding) -> Set[str]:
-    keys = set(finding.maswe_refs)
+    keys = {f"check:{finding.check_id}"}
     if finding.correlation_key:
-        keys.add(finding.correlation_key)
-    if not keys:
-        keys.add(f"check:{finding.check_id}")
+        keys.add(f"correlation:{finding.correlation_key}")
     return keys
 
 
@@ -26,9 +24,12 @@ def correlate_findings(static_findings: List[Finding], dynamic_findings: List[Fi
         for item in dynamic_findings
     ])
     by_key: Dict[str, List[int]] = {}
+    by_weakness: Dict[str, List[int]] = {}
     for index, item in enumerate(static_items):
         for key in _keys(item):
             by_key.setdefault(key, []).append(index)
+        for weakness in item.maswe_refs:
+            by_weakness.setdefault(weakness, []).append(index)
 
     merged: Dict[int, List[Finding]] = {}
     unmatched_dynamic: List[Finding] = []
@@ -37,10 +38,18 @@ def correlate_findings(static_findings: List[Finding], dynamic_findings: List[Fi
         for key in _keys(dynamic):
             matches.update(by_key.get(key, []))
         if not matches:
+            # Weakness-level fallback is allowed only when it has one static candidate.
+            # This avoids joining unrelated rules that share a broad MASWE category.
+            for weakness in dynamic.maswe_refs:
+                candidates = set(by_weakness.get(weakness, []))
+                if len(candidates) == 1:
+                    matches.update(candidates)
+        if not matches:
             unmatched_dynamic.append(dynamic.model_copy(update={
                 "verification_status": VerificationStatus.DYNAMICALLY_CONFIRMED
                 if dynamic.status.value == "Fail" else VerificationStatus.NOT_OBSERVED,
                 "confidence": Confidence.HIGH if dynamic.status.value == "Fail" else dynamic.confidence,
+                "confidence_score": 0.9 if dynamic.status.value == "Fail" else max(dynamic.confidence_score, 0.55),
             }))
             continue
         for index in matches:
@@ -84,6 +93,7 @@ def correlate_findings(static_findings: List[Finding], dynamic_findings: List[Fi
             "analysis_type": AnalysisType.HYBRID,
             "verification_status": runtime_status,
             "confidence": Confidence.HIGH if confirmed else Confidence.MEDIUM,
+            "confidence_score": 0.9 if confirmed else 0.45,
             "evidence": text_evidence,
             "metadata": {**static.metadata, "correlated_dynamic_findings": combined},
         }))
