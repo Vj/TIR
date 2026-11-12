@@ -181,8 +181,8 @@ python app.py dynamic --apk target.apk --package com.example.app --deep-link 'ht
 For network capture, start an analyst-managed mitmproxy instance separately; TIR does not change device proxy or CA settings. Example for PowerShell:
 
 ```powershell
-$env:TIR_MITM_JSONL = (Resolve-Path .).Path + '\\mitm_metadata.jsonl'
-mitmdump -s .\\scripts\\dynamic\\mitm_export.py
+$env:TIR_MITM_JSONL = (Resolve-Path .).Path + '\mitm_metadata.jsonl'
+mitmdump -s .\scripts\dynamic\mitm_export.py
 ```
 
 The exporter records only scheme, host, method, response status, and TLS version. It excludes request/response bodies, headers, paths, query strings, and cookies. Proxy flows are not automatically attributed to the target package, so use a dedicated test device and confirm attribution before treating an observation as a finding.
