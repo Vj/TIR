@@ -207,6 +207,52 @@
         "MASWE-0032"
       ],
       "mastg": []
+    },
+    "TIR-FRIDA-TLS-HOOKS": {
+      "masvs": [
+        "MASVS-NETWORK-1"
+      ],
+      "maswe": [
+        "MASWE-0027"
+      ],
+      "mastg": [
+        {
+          "id": "MASTG-TEST-0282",
+          "status": "current"
+        },
+        {
+          "id": "MASTG-TEST-0283",
+          "status": "current"
+        }
+      ]
+    },
+    "TIR-NETWORK-CLEARTEXT": {
+      "masvs": [
+        "MASVS-NETWORK-1"
+      ],
+      "maswe": [
+        "MASWE-0026"
+      ],
+      "mastg": [
+        {
+          "id": "MASTG-TEST-0236",
+          "status": "current"
+        }
+      ]
+    },
+    "TIR-NETWORK-INTERCEPTED-TLS": {
+      "masvs": [
+        "MASVS-NETWORK-2"
+      ],
+      "maswe": [
+        "MASWE-0028"
+      ],
+      "mastg": [
+        {
+          "id": "MASTG-TEST-0244",
+          "status": "current"
+        }
+      ]
     }
   }
 }
