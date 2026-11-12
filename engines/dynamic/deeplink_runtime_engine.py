@@ -55,7 +55,12 @@ class DeepLinkRuntimeEngine:
 
     @staticmethod
     def _finding(target: str, sent: bool, detail: str) -> Finding:
-        safe_target = target
+        # Deep-link paths and query strings can contain credentials or user data.
+        try:
+            parsed = urlsplit(target)
+            safe_target = f"{parsed.scheme}://{parsed.hostname or '[host omitted]'}[path/query redacted]"
+        except (TypeError, ValueError):
+            safe_target = "[URI redacted]"
         return Finding(
             check_id="TIR-DEEPLINK-RUNTIME",
             title="Manifest-seeded deep-link invocation",
