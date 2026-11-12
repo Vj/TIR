@@ -90,6 +90,62 @@ class ModernAndroidAnalysisEngine:
             result["valid"] = False
         return result
 
+    def _analyze_reachability(self) -> Dict[str, Any]:
+        """Use Androguard call graphs when installed; never infer unreachable on absence."""
+        try:
+            from androguard.misc import AnalyzeAPK
+            _, _, analysis = AnalyzeAPK(self.apk_path)
+            get_graph = getattr(analysis, "get_call_graph", None)
+            if get_graph is None:
+                return {"status": "unavailable", "reason": "Installed Androguard API has no get_call_graph"}
+            graph = get_graph()
+            entry_nodes = [node for node, attrs in graph.nodes(data=True) if attrs.get("entrypoint")]
+            reachable = set()
+            pending = list(entry_nodes)
+            while pending:
+                node = pending.pop()
+                if node in reachable:
+                    continue
+                reachable.add(node)
+                pending.extend(child for child in graph.successors(node) if child not in reachable)
+            classes = set()
+            for node in reachable:
+                method = node.get_method() if hasattr(node, "get_method") else node
+                class_name = getattr(method, "get_class_name", lambda: "")()
+                if class_name:
+                    classes.add(class_name.strip("L;").replace("/", "."))
+            return {
+                "status": "analyzed",
+                "entrypoint_count": len(entry_nodes),
+                "reachable_method_count": len(reachable),
+                "reachable_classes": sorted(classes)[:5000],
+                "limitations": "DEX call-graph coverage may miss reflection, JNI, dynamic loading, and framework callbacks.",
+            }
+        except ImportError:
+            return {"status": "unavailable", "reason": "Optional Androguard call-graph support is not installed"}
+        except Exception as exc:
+            return {"status": "unavailable", "reason": f"Call-graph analysis failed: {exc}"[:300]}
+
+    @staticmethod
+    def _annotate_reachability(findings: List[Finding], summary: Dict[str, Any]) -> List[Finding]:
+        if summary.get("status") != "analyzed":
+            return findings
+        reachable = set(summary.get("reachable_classes", []))
+        output = []
+        for finding in findings:
+            component = (finding.affected_component or "").strip()
+            normalized = component.strip("L;").replace("/", ".")
+            metadata = dict(finding.metadata)
+            if normalized and normalized in reachable:
+                metadata["reachability"] = "reachable_from_exported_entrypoint"
+                metadata["reachability_source"] = "Androguard call graph"
+            elif normalized:
+                # Absence is inconclusive; do not suppress the finding.
+                metadata["reachability"] = "unknown"
+                metadata["reachability_source"] = "Androguard call graph"
+            output.append(finding.model_copy(update={"metadata": metadata}))
+        return output
+
     def audit(self) -> Tuple[List[Finding], Dict[str, Any]]:
         findings: List[Finding] = []
         targets: Dict[str, Any] = {
@@ -189,6 +245,10 @@ class ModernAndroidAnalysisEngine:
                 evidence=str(exc)[:300],
                 remediation="Provide a valid APK file and rerun the scan.",
             ))
+        reachability = self._analyze_reachability()
+        targets["reachability"] = {key: value for key, value in reachability.items() if key != "reachable_classes"}
+        targets["reachable_classes"] = reachability.get("reachable_classes", [])
+        findings = self._annotate_reachability(findings, reachability)
         return findings, targets
 
     def _audit_manifest(self, root: ET.Element, targets: Dict[str, Any]) -> List[Finding]:
