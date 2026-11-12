@@ -18,6 +18,8 @@ from engines.dynamic.root_isolation_engine import RootIsolationEngine
 from engines.dynamic.runtime_verification_engine import RuntimeVerificationEngine
 from engines.dynamic.shell_test_engine import ShellTestEngine
 from engines.dynamic.runtime_coverage_engine import RuntimeCoverageEngine
+from engines.dynamic.frida_tls_observer import FridaTLSObserver
+from engines.dynamic.network_capture_engine import NetworkCaptureEngine
 from core.correlation import correlate_findings
 from core.standards import enrich_findings
 
@@ -42,6 +44,8 @@ def main():
     dyn_parser.add_argument("--targets", help="Optional dynamic_targets.json produced by a static scan")
     dyn_parser.add_argument("--explore", action="store_true", help="Opt in to bounded, non-destructive UI exploration and sandbox file hashing")
     dyn_parser.add_argument("--probe-ipc", action="store_true", help="Opt in to manifest-seeded service and read-only Content Provider probes")
+    dyn_parser.add_argument("--frida-tls", action="store_true", help="Opt in to attach-only Frida observation of TLS configuration APIs")
+    dyn_parser.add_argument("--mitm-flows", help="Optional metadata-only JSONL flow export from scripts/dynamic/mitm_export.py")
     dyn_parser.add_argument("--max-ui-actions", type=int, default=12, help="Maximum UI taps when --explore is enabled (1-40)")
 
     args = parser.parse_args()
@@ -125,6 +129,7 @@ def _handle_dynamic_scan(args):
     all_dynamic_findings = []
     watcher = LogcatWatcher(device_id=device_id)
     watcher.start(package_name=args.package)
+    frida_observer = FridaTLSObserver(args.package, device_id=device_id) if args.frida_tls else None
 
     # 1. Device Environment & Root Security Testing (ROT-019 to ROT-026)
     print("[*] Auditing environment, permissions, and debugging interfaces (ROT-*)...")
@@ -205,6 +210,10 @@ def _handle_dynamic_scan(args):
         print(f"[!] Runtime behavior test notice: {e}")
 
     '''
+    if frida_observer:
+        print("[*] Attaching optional Frida TLS observer...")
+        frida_observer.start()
+
     # 4. Automated Component Discovery & Resilience Audit (DYN-031, DYN-032)
     print("[*] Auditing exported component launch resilience and parameter parsing...")
     comp_engine = ComponentAuditEngine(package_name=args.package, device_id=device_id)
@@ -263,6 +272,12 @@ def _handle_dynamic_scan(args):
     log_findings = watcher.stop()
     all_dynamic_findings.extend(log_findings)
     print(f"[+] Log monitoring finished: Captured {len(log_findings)} log findings.")
+
+    if frida_observer:
+        all_dynamic_findings.append(frida_observer.stop())
+    if args.mitm_flows:
+        print("[*] Reviewing metadata-only proxy flow export...")
+        all_dynamic_findings.extend(NetworkCaptureEngine(args.mitm_flows, device_id=device_id).audit())
 
     # Correlate static and dynamic evidence without converting lack of observation to proof.
     dynamic_findings = [
