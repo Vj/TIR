@@ -140,3 +140,55 @@ TIR evaluates checks against predefined severity thresholds:
 Critical / High: Direct integrity, cryptographic, or storage failures requiring immediate remediation before production deployment.
 Medium / Low: Hardening oversights and defense-in-depth gaps.
 Needs Review: Guided items (such as business logic workflows, external third-party domains, and biometrics) requiring manual analyst validation.
+
+## Modular dynamic shell checks
+
+The `dynamic` command now runs bundled, read-only Android shell checks through the selected ADB device. The first checks inspect the running app's `TracerPid` and the installed package's `DEBUGGABLE` flag. Script files live in `scripts/dynamic/`; the Python runner allow-lists script names, validates the package identifier, applies a timeout, and maps results into the standard TIR finding model.
+
+Start the target app on the test device before the audit so process-level checks can collect evidence:
+
+```sh
+python app.py dynamic --package com.example.app --device DEVICE_SERIAL --duration 25
+```
+
+The scripts are read-only and do not install packages, alter device settings, or modify app data. Results that cannot be established (for example, when the app is not running or the package flags are unavailable) are reported as needing analyst review.
+
+
+## MASVS v2 / MASTG v2 analysis and correlation
+
+TIR writes versioned findings with MASVS controls, MASWE weaknesses, MASTG test references and status, numeric confidence, and verification state. The checked-in `standards/owasp_mobile_catalog.json` records current versus placeholder tests; mappings are evidence references and do not claim OWASP certification.
+
+Static APK analysis now includes:
+
+- Jetpack DataStore and Jetpack Security Crypto API reference detection. These produce review items; a library reference alone does not prove that sensitive values are stored or that a keyset is misconfigured.
+- ELF header and program-header review for packaged `.so` files, including executable stack, stack-canary imports, RELRO, and debug-section indicators. Native string scanning reports high-signal secret candidates for analyst review.
+- Manifest-derived exported component and deep-link targets, including HTTPS App Link `autoVerify` state; PendingIntent and SDK package fingerprints are reported conservatively.
+- A versioned `dynamic_targets.json` handoff. The APK scanner emits it during static scans.
+
+Examples:
+
+```sh
+python app.py scan --apk target.apk --targets-output dynamic_targets.json --output report.pdf
+python app.py dynamic --apk target.apk --package com.example.app --targets dynamic_targets.json --device DEVICE_SERIAL --duration 25 --probe-ipc --explore --max-ui-actions 12
+```
+
+Supply one or more explicit deep links to exercise after the static scan validates their scheme/host. Flow capture and Frida observation are optional:
+
+```sh
+python app.py dynamic --apk target.apk --package com.example.app --deep-link 'https://example.com/open' --frida-tls --mitm-flows mitm_metadata.jsonl
+```
+
+For network capture, start an analyst-managed mitmproxy instance separately; TIR does not change device proxy or CA settings. Example for PowerShell:
+
+```powershell
+$env:TIR_MITM_JSONL = (Resolve-Path .).Path + '\mitm_metadata.jsonl'
+mitmdump -s .\scripts\dynamic\mitm_export.py
+```
+
+The exporter records only scheme, host, method, response status, and TLS version. It excludes request/response bodies, headers, paths, query strings, and cookies. Proxy flows are not automatically attributed to the target package, so use a dedicated test device and confirm attribution before treating an observation as a finding.
+
+Install Frida's Python bindings compatible with the device's Frida server before using `--frida-tls`. The observer attaches to an already-running process and records TLS configuration API events; it does not bypass certificate checks. Optional call-graph annotation requires an Androguard version that exposes `Analysis.get_call_graph`; unavailable or unmatched reachability remains unknown and never suppresses a finding.
+
+Dynamic correlation runs the static scan when `--apk` is supplied, validates the target package, and combines matching evidence. Runtime non-observation is kept separate from proven unreachability. UI exploration is opt-in, bounded to 1–40 taps, skips unlabeled controls and controls with common destructive/action labels, enters no text, and never records sandbox file contents. The differential snapshot stores only paths and SHA-256 digests; app-private access may require a debuggable test build, and external-storage coverage depends on Android version and device policy.
+
+SBOM package fingerprints are inventory hints: TIR extracts Maven metadata when packaged but does not establish exact versions for every bundled library or query a vulnerability database. Call-graph reachability is optional and annotates component findings only when the analyzer can prove a match; it never suppresses findings. Frida and proxy capture are optional adapters and require an analyst-configured test environment. No automated MASVS compliance claim is made.

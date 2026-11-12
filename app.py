@@ -4,8 +4,9 @@ import sys
 import os
 import time
 import datetime
+import json
 
-from core.models import AuditSession, CheckStatus
+from core.models import AuditSession, CheckStatus, AnalysisType, VerificationStatus
 from core.orchestrator import TIROrchestrator
 from engines.dynamic.logcat_watcher import LogcatWatcher
 from engines.dynamic.adb_client import ADBBridge
@@ -15,6 +16,13 @@ from engines.dynamic.runtime_behavior_engine import RuntimeBehaviorEngine
 from engines.dynamic.component_audit_engine import ComponentAuditEngine
 from engines.dynamic.root_isolation_engine import RootIsolationEngine
 from engines.dynamic.runtime_verification_engine import RuntimeVerificationEngine
+from engines.dynamic.shell_test_engine import ShellTestEngine
+from engines.dynamic.runtime_coverage_engine import RuntimeCoverageEngine
+from engines.dynamic.frida_tls_observer import FridaTLSObserver
+from engines.dynamic.network_capture_engine import NetworkCaptureEngine
+from engines.dynamic.deeplink_runtime_engine import DeepLinkRuntimeEngine
+from core.correlation import correlate_findings
+from core.standards import enrich_findings
 
 def main():
     parser = argparse.ArgumentParser(description="TIR Standalone Mobile Security Scanner")
@@ -24,6 +32,7 @@ def main():
     scan_parser = subparsers.add_parser("scan", help="Run automated static analysis across all workspaces")
     scan_parser.add_argument("--apk", required=True, help="Absolute path to target APK")
     scan_parser.add_argument("--output", default="report.pdf", help="Output path for the generated PDF/HTML report")
+    scan_parser.add_argument("--targets-output", default="dynamic_targets.json", help="Static-to-dynamic target seed JSON path")
 
     # 2. Dynamic Live Audit Subcommand
     dyn_parser = subparsers.add_parser("dynamic", help="Run active runtime audit with sandbox, root, and behavior checks")
@@ -33,6 +42,13 @@ def main():
     dyn_parser.add_argument("--device", help="ADB device identifier (optional)")
     dyn_parser.add_argument("--duration", type=int, default=25, help="Monitoring capture duration in seconds")
     dyn_parser.add_argument("--output", default="dynamic_report.html", help="Output report path")
+    dyn_parser.add_argument("--targets", help="Optional dynamic_targets.json produced by a static scan")
+    dyn_parser.add_argument("--explore", action="store_true", help="Opt in to bounded, non-destructive UI exploration and sandbox file hashing")
+    dyn_parser.add_argument("--probe-ipc", action="store_true", help="Opt in to manifest-seeded service and read-only Content Provider probes")
+    dyn_parser.add_argument("--frida-tls", action="store_true", help="Opt in to attach-only Frida observation of TLS configuration APIs")
+    dyn_parser.add_argument("--mitm-flows", help="Optional metadata-only JSONL flow export from scripts/dynamic/mitm_export.py")
+    dyn_parser.add_argument("--deep-link", action="append", default=[], help="Opt-in URI to invoke; must match an explicitly exported static target. May be repeated.")
+    dyn_parser.add_argument("--max-ui-actions", type=int, default=12, help="Maximum UI taps when --explore is enabled (1-40)")
 
     args = parser.parse_args()
 
@@ -58,6 +74,8 @@ def _handle_static_scan(args):
     orchestrator = TIROrchestrator(apk_path=apk_path)
     print("[*] Running automated static checks across all 13 tabs + STA extensions...")
     findings = orchestrator.execute_all_automated()
+    targets_path = orchestrator.write_dynamic_targets(args.targets_output)
+    print(f"[+] Static-to-dynamic targets written: {targets_path}")
     print(f"[+] Total static checks evaluated: {len(findings)}")
 
     session = AuditSession(
@@ -83,7 +101,37 @@ def _handle_dynamic_scan(args):
     print(f"[*] Attached Device: {device_id}")
     print(f"[*] Target Package: {args.package}")
 
+    static_findings = []
+    targets_data = {}
+    static_orchestrator = None
+    if args.apk:
+        apk_path = os.path.abspath(args.apk)
+        if not os.path.isfile(apk_path):
+            print(f"[!] Error: APK file not found: {apk_path}")
+            sys.exit(2)
+        print("[*] Running static analysis to seed and correlate this dynamic audit...")
+        static_orchestrator = TIROrchestrator(apk_path=apk_path)
+        if static_orchestrator.metadata.get("package_name") != args.package:
+            print("[!] APK package name does not match --package.")
+            sys.exit(2)
+        static_findings = static_orchestrator.execute_all_automated()
+        targets_data = static_orchestrator.dynamic_targets
+    if args.targets:
+        try:
+            with open(args.targets, "r", encoding="utf-8") as stream:
+                targets_data = json.load(stream)
+            if not isinstance(targets_data, dict) or targets_data.get("schema_version") != 1:
+                raise ValueError("Unsupported dynamic target schema")
+            if targets_data.get("package_name") and targets_data["package_name"] != args.package:
+                raise ValueError("Dynamic target package does not match --package")
+        except (OSError, json.JSONDecodeError, ValueError) as exc:
+            print(f"[!] Could not load dynamic targets: {exc}")
+            sys.exit(2)
+
     all_dynamic_findings = []
+    watcher = LogcatWatcher(device_id=device_id)
+    watcher.start(package_name=args.package)
+    frida_observer = FridaTLSObserver(args.package, device_id=device_id) if args.frida_tls else None
 
     # 1. Device Environment & Root Security Testing (ROT-019 to ROT-026)
     print("[*] Auditing environment, permissions, and debugging interfaces (ROT-*)...")
@@ -164,11 +212,24 @@ def _handle_dynamic_scan(args):
         print(f"[!] Runtime behavior test notice: {e}")
 
     '''
+    if frida_observer:
+        print("[*] Attaching optional Frida TLS observer...")
+        frida_observer.start()
+
+    if args.deep_link:
+        print("[*] Invoking analyst-supplied manifest-seeded deep links...")
+        deep_link_engine = DeepLinkRuntimeEngine(package_name=args.package, device_id=device_id)
+        declared_links = targets_data.get("deep_links", [])
+        all_dynamic_findings.extend(
+            deep_link_engine.invoke(uri, declared_links) for uri in args.deep_link
+        )
+
     # 4. Automated Component Discovery & Resilience Audit (DYN-031, DYN-032)
     print("[*] Auditing exported component launch resilience and parameter parsing...")
     comp_engine = ComponentAuditEngine(package_name=args.package, device_id=device_id)
     try:
-        comp_findings = comp_engine.audit_exported_components()
+        seeded_components = (targets_data.get("components") or None) if args.probe_ipc else None
+        comp_findings = comp_engine.audit_exported_components(targets=seeded_components)
         all_dynamic_findings.extend(comp_findings)
         print(f"[+] Component resilience audit complete: {len(comp_findings)} check(s) evaluated.")
     except Exception as e:
@@ -187,11 +248,29 @@ def _handle_dynamic_scan(args):
         print(f"[!] Runtime verification notice: {e}")
 
         
-    # 4. Live Logcat Monitoring Session (Tabs 02 & 13)
-    print(f"[*] Starting live Logcat monitoring for {args.duration}s...")
+    # 5. Modular read-only device-side shell checks
+    print("[*] Running modular runtime process and package-flag checks...")
+    shell_engine = ShellTestEngine(package_name=args.package, device_id=device_id)
+    try:
+        shell_findings = shell_engine.audit_all()
+        all_dynamic_findings.extend(shell_findings)
+        print(f"[+] Shell checks complete: {len(shell_findings)} result(s).")
+    except Exception as e:
+        print(f"[!] Shell checks notice: {e}")
+
+    if args.explore:
+        print("[*] Running opted-in bounded UI exploration and file-system diff...")
+        try:
+            coverage_engine = RuntimeCoverageEngine(package_name=args.package, device_id=device_id)
+            coverage_findings = coverage_engine.explore(max_actions=args.max_ui_actions)
+            all_dynamic_findings.extend(coverage_findings)
+            print(f"[+] UI exploration complete: {len(coverage_findings)} coverage result(s).")
+        except Exception as e:
+            print(f"[!] UI exploration notice: {e}")
+
+    # Logcat has been monitoring since the start of the dynamic audit.
+    print(f"[*] Live Logcat monitoring continues for {args.duration}s...")
     print("[*] Perform user actions on the device now...")
-    watcher = LogcatWatcher(device_id=device_id)
-    watcher.start(package_name=args.package)
 
     try:
         for remaining in range(args.duration, 0, -5):
@@ -204,6 +283,31 @@ def _handle_dynamic_scan(args):
     all_dynamic_findings.extend(log_findings)
     print(f"[+] Log monitoring finished: Captured {len(log_findings)} log findings.")
 
+    if frida_observer:
+        all_dynamic_findings.append(frida_observer.stop())
+    if args.mitm_flows:
+        print("[*] Reviewing metadata-only proxy flow export...")
+        all_dynamic_findings.extend(NetworkCaptureEngine(args.mitm_flows, device_id=device_id).audit())
+
+    # Correlate static and dynamic evidence without converting lack of observation to proof.
+    dynamic_findings = [
+        item.model_copy(update={"coverage": {**item.coverage, "device": device_id}})
+        for item in all_dynamic_findings
+    ]
+    if static_findings:
+        all_findings = correlate_findings(static_findings, dynamic_findings)
+    else:
+        all_findings = enrich_findings(dynamic_findings)
+        all_findings = [
+            item.model_copy(update={
+                "analysis_type": AnalysisType.DYNAMIC,
+                "verification_status": VerificationStatus.DYNAMICALLY_CONFIRMED
+                if item.status == CheckStatus.FAIL else VerificationStatus.NOT_OBSERVED
+                if item.status == CheckStatus.PASS else VerificationStatus.UNVERIFIED,
+            })
+            for item in all_findings
+        ]
+
     # 5. Consolidate and Render Final Dynamic Report
     session = AuditSession(
         session_id=f"TIR-DYN-{datetime.date.today().strftime('%Y%m%d')}-001",
@@ -211,10 +315,10 @@ def _handle_dynamic_scan(args):
         package_name=args.package,
         version_name="Dynamic Run",
         timestamp=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        findings=all_dynamic_findings
+        findings=all_findings
     )
 
-    orchestrator = TIROrchestrator(apk_path=args.apk) if args.apk else None
+    orchestrator = static_orchestrator
     if orchestrator:
         orchestrator.generate_pdf_report(session, output_pdf_path=os.path.abspath(args.output))
     else:

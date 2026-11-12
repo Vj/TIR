@@ -21,6 +21,20 @@ class AnalysisType(str, Enum):
     DYNAMIC = "Dynamic Runtime" 
     HYBRID = "Hybrid Verified"
 
+class VerificationStatus(str, Enum):
+    STATIC_ONLY = "STATIC_ONLY"
+    DYNAMICALLY_CONFIRMED = "DYNAMICALLY_CONFIRMED"
+    NOT_OBSERVED = "NOT_OBSERVED"
+    UNREACHABLE_AT_RUNTIME = "UNREACHABLE_AT_RUNTIME"
+    UNVERIFIED = "UNVERIFIED"
+
+
+class Confidence(str, Enum):
+    LOW = "Low"
+    MEDIUM = "Medium"
+    HIGH = "High"
+
+
 class Finding(BaseModel):
     check_id: str
     title: str
@@ -39,6 +53,14 @@ class Finding(BaseModel):
     masvs_ref: Optional[str] = None
     mastg_ref: Optional[str] = None
     analysis_type: AnalysisType = AnalysisType.STATIC
+    maswe_refs: List[str] = Field(default_factory=list)
+    mastg_refs: List[str] = Field(default_factory=list)
+    verification_status: VerificationStatus = VerificationStatus.STATIC_ONLY
+    confidence: Confidence = Confidence.MEDIUM
+    confidence_score: float = Field(default=0.5, ge=0.0, le=1.0)
+    coverage: Dict[str, Any] = Field(default_factory=dict)
+    correlation_key: Optional[str] = None
+    rule_catalog_version: str = "owasp-mastg-v2.0.0"
     poc_preconditions: Optional[str] = None
     poc_command: Optional[str] = None
     poc_expected: Optional[str] = None

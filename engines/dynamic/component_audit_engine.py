@@ -1,8 +1,9 @@
 # engines/dynamic/component_audit_engine.py
 import subprocess
 import time
+import re
 from typing import List, Dict, Any, Set
-from core.models import Finding, Severity, CheckStatus
+from core.models import AnalysisType, Finding, Severity, CheckStatus, Confidence
 
 class ComponentAuditEngine:
     def __init__(self, package_name: str, device_id: str = None):
@@ -54,20 +55,120 @@ class ComponentAuditEngine:
 
         return {k: sorted(list(v)) for k, v in components.items()}
 
-    def audit_exported_components(self) -> List[Finding]:
-        """Runs launch and fuzz tests on all discovered exported components."""
+    def _normalize_static_targets(self, targets: Dict[str, Any]) -> Dict[str, Any]:
+        """Accept only package-owned component names and syntactically safe authorities."""
+        safe_name = re.compile(r"^[A-Za-z0-9_.$]+$")
+        catalog = {"activities": [], "services": [], "receivers": [], "providers": []}
+        for kind in catalog:
+            for row in targets.get(kind, []):
+                name = row.get("name", "") if isinstance(row, dict) else str(row)
+                if not safe_name.fullmatch(name):
+                    continue
+                normalized = name
+                if normalized.startswith("."):
+                    normalized = self.package_name + normalized
+                elif "." not in normalized:
+                    normalized = self.package_name + "." + normalized
+                if normalized != self.package_name and not normalized.startswith(self.package_name + "."):
+                    continue
+                entry = dict(row) if isinstance(row, dict) else {"name": normalized}
+                entry["name"] = normalized
+                if kind == "providers":
+                    authority = entry.get("authority", "")
+                    if not isinstance(authority, str) or not re.fullmatch(r"[A-Za-z0-9_.;-]+", authority):
+                        continue
+                catalog[kind].append(entry)
+        return catalog
+
+    def audit_exported_components(self, targets: Dict[str, Any] = None) -> List[Finding]:
+        """Run bounded component probes; provider reads require explicitly seeded targets."""
         findings: List[Finding] = []
-        catalog = self.discover_components()
+        if targets is None:
+            discovered = self.discover_components()
+            catalog = {key: [{"name": name} for name in values] for key, values in discovered.items()}
+            catalog["providers"] = []
+        else:
+            catalog = self._normalize_static_targets(targets)
 
-        # 1. Audit Exported Activities
-        for act in catalog["activities"]:
-            findings.extend(self._test_activity_lifecycle(act))
-
-        # 2. Audit Exported Broadcast Receivers
-        for rec in catalog["receivers"]:
-            findings.extend(self._test_receiver_resilience(rec))
+        for row in catalog["activities"]:
+            findings.extend(self._test_activity_lifecycle(row["name"]))
+        for row in catalog["receivers"]:
+            findings.extend(self._test_receiver_resilience(row["name"]))
+        for row in catalog["services"]:
+            findings.extend(self._test_service_boundary(row["name"]))
+        for row in catalog["providers"]:
+            findings.extend(self._test_provider_boundary(row))
 
         return findings
+
+    def _test_service_boundary(self, service_name: str) -> List[Finding]:
+        full_target = f"{self.package_name}/{service_name}"
+        output = self._adb_exec(["shell", "am", "startservice", "-n", full_target])
+        if "SecurityException" in output or "Permission Denial" in output:
+            return [Finding(
+                check_id="TIR-IPC-SERVICE",
+                title=f"Exported service enforces an access boundary: {service_name.split('.')[-1]}",
+                category="MASVS-PLATFORM",
+                tab_index=6,
+                severity=Severity.INFO,
+                status=CheckStatus.PASS,
+                analysis_type=AnalysisType.DYNAMIC,
+                confidence=Confidence.MEDIUM,
+                affected_component=service_name,
+                description="ADB invocation was denied by the platform or an explicit component permission.",
+                evidence=output[:250],
+            )]
+        return [Finding(
+            check_id="TIR-IPC-SERVICE",
+            title=f"Exported service invocation needs authorization review: {service_name.split('.')[-1]}",
+            category="MASVS-PLATFORM",
+            tab_index=6,
+            severity=Severity.INFO,
+            status=CheckStatus.NEEDS_REVIEW,
+            analysis_type=AnalysisType.DYNAMIC,
+            confidence=Confidence.LOW,
+            affected_component=service_name,
+            description="The ADB shell could invoke or attempt to start the exported service. This does not establish that a normal third-party app can access sensitive functionality.",
+            evidence=output[:250] or "No clear invocation result was returned.",
+            remediation="Review the service's exported state, permission protection level, and authorization checks.",
+        )]
+
+    def _test_provider_boundary(self, row: Dict[str, Any]) -> List[Finding]:
+        authority = row.get("authority", "").split(";")[0]
+        if not authority or not re.fullmatch(r"[A-Za-z0-9_.]+", authority):
+            return []
+        uri = f"content://{authority}/"
+        output = self._adb_exec(["shell", "content", "query", "--uri", uri])
+        denied = "Permission Denial" in output or "SecurityException" in output
+        if denied:
+            status, severity = CheckStatus.PASS, Severity.INFO
+            description = "The provider query was denied by the platform or a provider permission."
+            evidence = f"URI: {uri}\nResult: access denied."
+        elif output.startswith("ERROR:") or not output:
+            status, severity = CheckStatus.NEEDS_REVIEW, Severity.INFO
+            description = "The provider query did not produce enough evidence to evaluate its access boundary."
+            evidence = f"URI: {uri}\nResult: {output[:200] or 'no output'}"
+        else:
+            # Never retain provider row contents in reports.
+            row_count = sum(1 for line in output.splitlines() if line.strip().startswith("Row:"))
+            status, severity = CheckStatus.NEEDS_REVIEW, Severity.MEDIUM
+            description = "ADB shell returned provider data. The shell identity may differ from a normal third-party app; validate with a purpose-built unprivileged test app."
+            evidence = f"URI: {uri}\nRows returned: {row_count}\nProvider permission: {row.get('permission') or 'none declared'}"
+        return [Finding(
+            check_id="TIR-IPC-PROVIDER",
+            title=f"Content Provider access boundary: {authority}",
+            category="MASVS-PLATFORM",
+            tab_index=6,
+            severity=severity,
+            status=status,
+            analysis_type=AnalysisType.DYNAMIC,
+            confidence=Confidence.MEDIUM if denied else Confidence.LOW,
+            affected_component=row.get("name"),
+            description=description,
+            evidence=evidence,
+            remediation="Restrict exported providers with signature or runtime permissions and validate URI paths and query parameters.",
+            coverage={"probe": "read-only query", "authority": authority, "device": self.device_id},
+        )]
 
     def _test_activity_lifecycle(self, activity_name: str) -> List[Finding]:
         results: List[Finding] = []
