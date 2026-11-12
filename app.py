@@ -98,8 +98,15 @@ def _handle_dynamic_scan(args):
     targets_data = {}
     static_orchestrator = None
     if args.apk:
+        apk_path = os.path.abspath(args.apk)
+        if not os.path.isfile(apk_path):
+            print(f"[!] Error: APK file not found: {apk_path}")
+            sys.exit(2)
         print("[*] Running static analysis to seed and correlate this dynamic audit...")
-        static_orchestrator = TIROrchestrator(apk_path=os.path.abspath(args.apk))
+        static_orchestrator = TIROrchestrator(apk_path=apk_path)
+        if static_orchestrator.metadata.get("package_name") != args.package:
+            print("[!] APK package name does not match --package.")
+            sys.exit(2)
         static_findings = static_orchestrator.execute_all_automated()
         targets_data = static_orchestrator.dynamic_targets
     if args.targets:
@@ -108,6 +115,8 @@ def _handle_dynamic_scan(args):
                 targets_data = json.load(stream)
             if not isinstance(targets_data, dict) or targets_data.get("schema_version") != 1:
                 raise ValueError("Unsupported dynamic target schema")
+            if targets_data.get("package_name") and targets_data["package_name"] != args.package:
+                raise ValueError("Dynamic target package does not match --package")
         except (OSError, json.JSONDecodeError, ValueError) as exc:
             print(f"[!] Could not load dynamic targets: {exc}")
             sys.exit(2)
