@@ -346,6 +346,8 @@
               </span>
               <span class="badge {{ item.status.value | replace(' ', '-') }}">{{ item.status.value }}</span>
               <span class="badge {{ item.severity.value }}">{{ item.severity.value }}</span>
+              <span class="badge">Verification: {{ item.verification_status.value }}</span>
+              <span class="badge">Confidence: {{ (item.confidence_score * 100) | int }}%</span>
             </span>
           </div>
 
@@ -366,6 +368,22 @@
             {% if item.masvs_ref %}
             <span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 3px;">
               <strong>OWASP:</strong> {{ item.masvs_ref }}
+            </span>
+            {% endif %}
+            {% if item.maswe_refs %}
+            <span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 3px;">
+              <strong>MASWE:</strong> {{ item.maswe_refs | join(', ') }}
+            </span>
+            {% endif %}
+            {% if item.mastg_refs %}
+            <span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 3px;">
+              <strong>MASTG v2:</strong> {{ item.mastg_refs | join(', ') }}
+              {% if item.rule_catalog_version %}<small>({{ item.rule_catalog_version }})</small>{% endif %}
+            </span>
+            {% endif %}
+            {% if item.coverage.get('device') %}
+            <span style="background: #f1f5f9; color: #334155; padding: 2px 6px; border-radius: 3px;">
+              <strong>Device:</strong> {{ item.coverage.get('device') }}
             </span>
             {% endif %}
           </div>
