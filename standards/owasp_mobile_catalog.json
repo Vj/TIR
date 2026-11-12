@@ -22,7 +22,7 @@
       "masvs": ["MASVS-CODE-3"],
       "maswe": ["MASWE-0045"],
       "mastg": [
-        {"id": "MASTG-TEST-0229", "status": "current"},
+        {"id": "MASTG-TEST-0223", "status": "current"},
         {"id": "MASTG-TEST-0288", "status": "current"}
       ]
     },
@@ -42,7 +42,7 @@
     "TIR-PENDINGINTENT": {
       "masvs": ["MASVS-PLATFORM-1"],
       "maswe": ["MASWE-0032"],
-      "mastg": [{"id": "MASTG-TEST-0374", "status": "current"}]
+      "mastg": [{"id": "MASTG-TEST-0381", "status": "current"}]
     },
     "TIR-DEPENDENCY-SBOM": {
       "masvs": ["MASVS-CODE-4"],
