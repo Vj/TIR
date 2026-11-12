@@ -39,17 +39,38 @@ class RuntimeCoverageEngine:
             raise RuntimeError((result.stderr or result.stdout or "ADB command failed")[:300])
         return result.stdout.strip()
 
-    def _snapshot(self) -> Dict[str, str]:
-        # run-as is available only for debuggable/test builds; never read file content.
-        output = self._adb([
-            "run-as", self.package_name, "sh", "-c",
-            "find files shared_prefs databases cache no_backup -type f -exec sha256sum {} \\; 2>/dev/null"
-        ])
+    def _parse_hashes(self, output: str, prefix: str) -> Dict[str, str]:
         rows = {}
         for line in output.splitlines():
             match = re.match(r"^([0-9a-fA-F]{64})\s+(.+)$", line.strip())
             if match:
-                rows[match.group(2)] = match.group(1).lower()
+                rows[prefix + match.group(2)] = match.group(1).lower()
+        return rows
+
+    def _snapshot(self) -> Dict[str, str]:
+        # run-as is available only for debuggable/test builds; never read file content.
+        rows = {}
+        errors = []
+        try:
+            output = self._adb([
+                "run-as", self.package_name, "sh", "-c",
+                "find files shared_prefs databases cache no_backup datastore -type f -exec sha256sum {} \\; 2>/dev/null"
+            ])
+            rows.update(self._parse_hashes(output, "app:"))
+        except Exception as exc:
+            errors.append(f"app-private: {exc}")
+        # Android app-specific external storage is often readable to shell, but scoped
+        # storage/device policy may deny it; do not interpret denial as no files.
+        try:
+            external_path = f"/sdcard/Android/data/{self.package_name}/files"
+            output = self._adb([
+                f"find {external_path} -type f -exec sha256sum {{}} \\; 2>/dev/null"
+            ])
+            rows.update(self._parse_hashes(output, "external:"))
+        except Exception as exc:
+            errors.append(f"external: {exc}")
+        if not rows and errors:
+            raise RuntimeError("; ".join(errors)[:400])
         return rows
 
     @staticmethod
