@@ -1,10 +1,12 @@
 # core/orchestrator.py
 import os
+import json
 import datetime
 from typing import List, Dict, Any
 from jinja2 import Environment, FileSystemLoader
 
 from core.models import Finding, CheckStatus, Severity, AuditSession
+from core.standards import enrich_findings
 from engines.static.recon_engine import ReconEngine
 from engines.static.crypto_auth_engine import CryptoAuthEngine
 from engines.static.network_platform_engine import NetworkPlatformEngine
@@ -21,6 +23,7 @@ from engines.static.advanced_static_engine import AdvancedStaticEngine
 # New extractors
 from engines.static.metadata_extractor import APKMetadataExtractor
 from engines.static.permission_engine import PermissionAnalyzer
+from engines.static.modern_android_engine import ModernAndroidAnalysisEngine
 
 
 class TIROrchestrator:
@@ -61,6 +64,8 @@ class TIROrchestrator:
         # Extended metadata & permission extractors
         self.meta_extractor = APKMetadataExtractor(apk_path)
         self.perm_analyzer = PermissionAnalyzer(manifest_str)
+        self.modern_android = ModernAndroidAnalysisEngine(apk_path)
+        self.dynamic_targets: Dict[str, Any] = {}
 
     @staticmethod
     def deduplicate_findings(findings: List[Finding]) -> List[Finding]:
@@ -198,8 +203,24 @@ class TIROrchestrator:
         findings.extend(self.advanced_threats.audit_all_advanced_threats())
         findings.extend(self.advanced_static.execute_all_additional_static())
 
-        # Filter duplicates before returning
+        # Modern APK checks produce both findings and static-to-dynamic targets.
+        modern_findings, self.dynamic_targets = self.modern_android.audit()
+        findings.extend(modern_findings)
+
+        # Attach versioned OWASP mappings where the rule catalog has an exact entry.
+        findings = enrich_findings(findings)
+
+        # Filter duplicates before returning.
         return self.deduplicate_findings(findings)
+
+    def write_dynamic_targets(self, output_path: str) -> str:
+        """Write the static-to-dynamic handoff as a versioned JSON artifact."""
+        output_path = os.path.abspath(output_path)
+        os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+        with open(output_path, "w", encoding="utf-8") as stream:
+            json.dump(self.dynamic_targets, stream, indent=2, sort_keys=True)
+            stream.write("\\n")
+        return output_path
 
     def generate_pdf_report(self, session: AuditSession, output_pdf_path: str):
         """Populates APK metadata, certificate info, permissions, and renders to PDF/HTML."""
