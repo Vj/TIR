@@ -1,5 +1,6 @@
 """Trigger explicitly supplied, manifest-seeded deep links on the test device."""
 import re
+import shlex
 import subprocess
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlsplit
@@ -33,8 +34,7 @@ class DeepLinkRuntimeEngine:
         command = [self.adb_path]
         if self.device_id:
             command.extend(["-s", self.device_id])
-        command.extend(["shell", "am", "start", "-a", "android.intent.action.VIEW",
-                        "-d", uri, "-p", self.package_name])
+        command.extend(["shell", f"am start -a android.intent.action.VIEW -d {shlex.quote(uri)} -p {shlex.quote(self.package_name)}"])
         try:
             result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8",
                                     errors="replace", timeout=15, check=False)
