@@ -6,7 +6,7 @@ import time
 import datetime
 import json
 
-from core.models import AuditSession, CheckStatus
+from core.models import AuditSession, CheckStatus, AnalysisType, VerificationStatus
 from core.orchestrator import TIROrchestrator
 from engines.dynamic.logcat_watcher import LogcatWatcher
 from engines.dynamic.adb_client import ADBBridge
@@ -294,7 +294,19 @@ def _handle_dynamic_scan(args):
         item.model_copy(update={"coverage": {**item.coverage, "device": device_id}})
         for item in all_dynamic_findings
     ]
-    all_findings = correlate_findings(static_findings, dynamic_findings) if static_findings else enrich_findings(dynamic_findings)
+    if static_findings:
+        all_findings = correlate_findings(static_findings, dynamic_findings)
+    else:
+        all_findings = enrich_findings(dynamic_findings)
+        all_findings = [
+            item.model_copy(update={
+                "analysis_type": AnalysisType.DYNAMIC,
+                "verification_status": VerificationStatus.DYNAMICALLY_CONFIRMED
+                if item.status == CheckStatus.FAIL else VerificationStatus.NOT_OBSERVED
+                if item.status == CheckStatus.PASS else VerificationStatus.UNVERIFIED,
+            })
+            for item in all_findings
+        ]
 
     # 5. Consolidate and Render Final Dynamic Report
     session = AuditSession(
