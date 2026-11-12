@@ -193,6 +193,8 @@ class ModernAndroidAnalysisEngine:
                               "provider": "providers"}[tag]
                     targets["components"][bucket].append({
                         "name": name, "type": tag, "permission": element.attrib.get(ANDROID_NS + "permission"),
+                        "authority": element.attrib.get(ANDROID_NS + "authorities", ""),
+                        "read_permission": element.attrib.get(ANDROID_NS + "readPermission"),
                         "exported": True,
                     })
                 for intent_filter in element.findall("intent-filter"):
