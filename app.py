@@ -40,6 +40,7 @@ def main():
     dyn_parser.add_argument("--output", default="dynamic_report.html", help="Output report path")
     dyn_parser.add_argument("--targets", help="Optional dynamic_targets.json produced by a static scan")
     dyn_parser.add_argument("--explore", action="store_true", help="Opt in to bounded, non-destructive UI exploration and sandbox file hashing")
+    dyn_parser.add_argument("--probe-ipc", action="store_true", help="Opt in to manifest-seeded service and read-only Content Provider probes")
     dyn_parser.add_argument("--max-ui-actions", type=int, default=12, help="Maximum UI taps when --explore is enabled (1-40)")
 
     args = parser.parse_args()
@@ -198,7 +199,7 @@ def _handle_dynamic_scan(args):
     print("[*] Auditing exported component launch resilience and parameter parsing...")
     comp_engine = ComponentAuditEngine(package_name=args.package, device_id=device_id)
     try:
-        seeded_components = targets_data.get("components") or None
+        seeded_components = (targets_data.get("components") or None) if args.probe_ipc else None
         comp_findings = comp_engine.audit_exported_components(targets=seeded_components)
         all_dynamic_findings.extend(comp_findings)
         print(f"[+] Component resilience audit complete: {len(comp_findings)} check(s) evaluated.")
