@@ -71,12 +71,15 @@ class RootEnvironmentEngine:
         """Report device properties as test-environment context, never app vulnerabilities."""
         ro_debuggable = self._adb_exec("getprop ro.debuggable")
         ro_secure = self._adb_exec("getprop ro.secure")
+        su_path = self._adb_exec("which su 2>/dev/null")
         process_list = self._adb_exec("ps -A")
         indicators = []
         if ro_debuggable == "1":
             indicators.append("ro.debuggable=1")
         if ro_secure == "0":
             indicators.append("ro.secure=0")
+        if su_path and "not found" not in su_path.lower():
+            indicators.append("su binary present")
         if any(token in process_list.lower() for token in ("frida-server", "magisk")):
             indicators.append("instrumentation/root process detected")
         return [Finding(
