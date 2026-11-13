@@ -55,6 +55,8 @@ class Finding(BaseModel):
     analysis_type: AnalysisType = AnalysisType.STATIC
     maswe_refs: List[str] = Field(default_factory=list)
     mastg_refs: List[str] = Field(default_factory=list)
+    regulatory_refs: List[str] = Field(default_factory=list)
+    regulatory_catalog_version: Optional[str] = None
     verification_status: VerificationStatus = VerificationStatus.STATIC_ONLY
     confidence: Confidence = Confidence.MEDIUM
     confidence_score: float = Field(default=0.5, ge=0.0, le=1.0)
