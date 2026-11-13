@@ -72,8 +72,9 @@ class TIROrchestrator:
         """Deduplicates findings based on Check ID, title, and target location snippet."""
         unique: Dict[tuple, Finding] = {}
         for f in findings:
-            key = (f.check_id, f.title.strip(), (f.evidence[:80] if f.evidence else ""))
-            if key not in unique:
+            bridge_match = "addjavascriptinterface" in (f.evidence or "").lower() or "javascript interface" in f.title.lower()
+            key = ("webview-bridge",) if bridge_match else (f.check_id, f.title.strip(), (f.evidence[:80] if f.evidence else ""))
+            if key not in unique or (bridge_match and f.check_id == "STA-024"):
                 unique[key] = f
         return list(unique.values())
 
