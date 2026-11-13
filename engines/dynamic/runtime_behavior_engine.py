@@ -48,7 +48,7 @@ class RuntimeBehaviorEngine:
                 activities.add(normalized)
         return sorted(activities)
 
-        def audit_dyn_030_screenshot_protection(self, test_activity: str) -> Finding:
+    def audit_dyn_030_screenshot_protection(self, test_activity: str) -> Finding:
         """Tests window capture protection (FLAG_SECURE) on an activity."""
         component = test_activity if "/" in test_activity else f"{self.package_name}/{test_activity}"
         
