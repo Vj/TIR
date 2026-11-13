@@ -48,7 +48,7 @@ class TIROrchestrator:
         self.crypto_auth = CryptoAuthEngine(apk_path)
         self.net_plat = NetworkPlatformEngine(apk_path)
         self.code_resil = CodeResilienceEngine(apk_path)
-        self.privacy = PrivacyEngine(apk_path, self.metadata.get("permissions", []))
+        self.privacy = PrivacyEngine(apk_path, self.metadata.get("permissions", []), self.metadata.get("target_sdk"))
         self.supply_logs = SupplyChainLoggingEngine(apk_path)
         self.asset_scanner = AssetFileEngine(apk_path)
         self.component_backup = ComponentBackupEngine(apk_path, manifest_str)
