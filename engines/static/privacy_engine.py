@@ -4,9 +4,13 @@ from typing import List, Dict, Set
 from core.models import Finding, Severity, CheckStatus
 
 class PrivacyEngine:
-    def __init__(self, apk_path: str, permissions: List[str]):
+    def __init__(self, apk_path: str, permissions: List[str], target_sdk=None):
         self.apk_path = apk_path
         self.permissions = set(permissions)
+        try:
+            self.target_sdk = int(target_sdk) if target_sdk is not None else None
+        except (TypeError, ValueError):
+            self.target_sdk = None
 
     def audit_tab09_privacy(self) -> List[Finding]:
         findings = []
@@ -111,6 +115,10 @@ class PrivacyEngine:
             ))
         elif has_aaid_api:
             has_ad_perm = "com.google.android.gms.permission.AD_ID" in self.permissions
+            # AD_ID is required for apps targeting API 33+, not older targets.
+            permission_required = self.target_sdk is None or self.target_sdk >= 33
+            if not has_ad_perm and not permission_required:
+                return findings
             findings.append(Finding(
                 check_id="AND-PRIV-03",
                 title="Advertising Identifier (AAID) In Use",
