@@ -21,8 +21,10 @@ from engines.dynamic.runtime_coverage_engine import RuntimeCoverageEngine
 from engines.dynamic.frida_tls_observer import FridaTLSObserver
 from engines.dynamic.network_capture_engine import NetworkCaptureEngine
 from engines.dynamic.deeplink_runtime_engine import DeepLinkRuntimeEngine
+from engines.dynamic.indian_regulatory_runtime import IndianRegulatoryRuntimeEngine
 from core.correlation import correlate_findings
 from core.standards import enrich_findings
+from core.regulatory import enrich_regulatory_findings, build_regulatory_summary, load_regulatory_catalog
 
 def main():
     parser = argparse.ArgumentParser(description="TIR Standalone Mobile Security Scanner")
@@ -53,8 +55,14 @@ def main():
     dyn_parser.add_argument("--max-ui-actions", type=int, default=12, help="Maximum UI taps when --explore is enabled (1-40)")
     dyn_parser.add_argument("--format", choices=("html", "pdf", "json", "sarif"), default="html", help="Report format")
     dyn_parser.add_argument("--baseline", help="Previous JSON report for New/Fixed/Regressed comparison")
+    dyn_parser.add_argument("--regulatory-checks", action="store_true", help="Run read-only RBI/SEBI/NPCI-mapped runtime observations")
+    dyn_parser.add_argument("--regulatory-emulator-call", action="store_true", help="Explicitly simulate an incoming call on an Android emulator only")
+    dyn_parser.add_argument("--call-number", default="5550100", help="Synthetic emulator caller number for --regulatory-emulator-call")
+    dyn_parser.add_argument("--official-installer", action="append", default=[], help="Approved installer package name for DYN-REG-05; repeatable; no default is assumed")
 
     args = parser.parse_args()
+    if args.command == "dynamic" and args.regulatory_emulator_call and not args.regulatory_checks:
+        parser.error("--regulatory-emulator-call requires --regulatory-checks")
 
     if args.command == "scan":
         _handle_static_scan(args)
@@ -299,6 +307,13 @@ def _handle_dynamic_scan(args):
         print("[*] Reviewing metadata-only proxy flow export...")
         all_dynamic_findings.extend(NetworkCaptureEngine(args.mitm_flows, device_id=device_id).audit())
 
+    if args.regulatory_checks:
+        print("[*] Running read-only regulatory runtime observations...")
+        regulatory_runtime = IndianRegulatoryRuntimeEngine(args.package, device_id=device_id)
+        all_dynamic_findings.extend(regulatory_runtime.audit(official_installers=args.official_installer))
+        if args.regulatory_emulator_call:
+            all_dynamic_findings.append(regulatory_runtime.simulate_emulator_call(args.call_number))
+
     # Merge overlapping DYN-035 database probes by normalized path.
     storage_rows = {}
     other_rows = []
@@ -332,6 +347,8 @@ def _handle_dynamic_scan(args):
             })
             for item in all_findings
         ]
+
+    all_findings = enrich_regulatory_findings(all_findings)
 
     # 5. Consolidate and Render Final Dynamic Report
     session = AuditSession(
@@ -377,6 +394,8 @@ def _handle_dynamic_scan(args):
             session=session,
             counts=counts,
             roadmap=roadmap,
+            regulatory_summary=build_regulatory_summary(all_findings),
+            regulatory_disclaimer=load_regulatory_catalog().get("disclaimer"),
             tool_version="TIR Auditor v2.4-enterprise",
             date=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         )
