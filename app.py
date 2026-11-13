@@ -304,6 +304,7 @@ def _handle_dynamic_scan(args):
                 "verification_status": VerificationStatus.DYNAMICALLY_CONFIRMED
                 if item.status == CheckStatus.FAIL else VerificationStatus.NOT_OBSERVED
                 if item.status == CheckStatus.PASS else VerificationStatus.UNVERIFIED,
+                "confidence_score": 0.95 if item.status == CheckStatus.FAIL and item.evidence else 0.7 if item.status == CheckStatus.PASS else 0.5,
             })
             for item in all_findings
         ]
