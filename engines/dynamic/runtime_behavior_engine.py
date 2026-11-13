@@ -2,6 +2,9 @@
 import time
 import subprocess
 import re
+import base64
+import tempfile
+import os
 from typing import List, Set
 from core.models import Finding, Severity, CheckStatus
 
@@ -56,7 +59,19 @@ class RuntimeBehaviorEngine:
         tmp_png = f"/data/local/tmp/tir_snap_{int(time.time())}.png"
         capture_result = self._adb_exec(["shell", "screencap", "-p", tmp_png])
         check_file = self._adb_exec(["shell", "ls", "-l", tmp_png])
-        self._adb_exec(["shell", "rm", "-f", tmp_png])
+        evidence_image = None
+        try:
+            with tempfile.TemporaryDirectory(prefix="tir-screen-") as temp_dir:
+                local_png = os.path.join(temp_dir, "capture.png")
+                command = ["adb"] + (["-s", self.device_id] if self.device_id else []) + ["pull", tmp_png, local_png]
+                pulled = subprocess.run(command, capture_output=True, timeout=30, check=False)
+                if pulled.returncode == 0 and os.path.isfile(local_png):
+                    with open(local_png, "rb") as image_file:
+                        evidence_image = "data:image/png;base64," + base64.b64encode(image_file.read()).decode("ascii")
+        except (OSError, subprocess.TimeoutExpired):
+            evidence_image = None
+        finally:
+            self._adb_exec(["shell", "rm", "-f", tmp_png])
 
         if "Status 1" in capture_result or "Permission denied" in capture_result or "failed" in capture_result.lower():
             return Finding(
@@ -80,6 +95,7 @@ class RuntimeBehaviorEngine:
                 status=CheckStatus.FAIL,
                 description=f"Activity '{test_activity}' does not set FLAG_SECURE. Sensitive UI fields remain exposed to background screenshot captures and task switchers.",
                 evidence=f"Screen snapshot captured via screencap: {check_file.strip()}",
+                evidence_image=evidence_image,
                 remediation="Add getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE) in onCreate()."
             )
 
