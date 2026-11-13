@@ -51,10 +51,10 @@ class IndianRegulatoryStaticEngine:
         call_state = ["TelephonyCallback", "PhoneStateListener", "CALL_STATE_OFFHOOK", "CALL_STATE_RINGING"]
         phone_perm = "android.permission.READ_PHONE_STATE" in manifest_permissions
         results.append(self._finding("STA-REG-03", "Active voice call control indicators",
-            call_state + (["READ_PHONE_STATE declared"] if phone_perm else []), dex, manifest_text,
+            call_state + (["android.permission.READ_PHONE_STATE"] if phone_perm else []), dex, manifest_text,
             "Confirm user warning or transaction restriction during an active call; static markers do not establish runtime response."))
         results.append(self._finding("STA-REG-04", "Developer options, ADB, and installer integrity indicators",
-            ["ADB_ENABLED", "DEVELOPMENT_SETTINGS_ENABLED", "getInstallSourceInfo", "getInstallerPackageName"],
+            ["ADB_ENABLED", "adb_enabled", "DEVELOPMENT_SETTINGS_ENABLED", "development_settings_enabled", "getInstallSourceInfo", "getInstallerPackageName"],
             dex, manifest_text, "Review whether developer/ADB state and installer integrity affect sensitive flows with documented false-positive handling."))
         results.append(self._finding("STA-REG-05", "OTP retrieval and sender validation indicators",
             ["SmsRetrieverClient", "SmsCodeRetriever", "SmsRetriever", "SMS_RETRIEVED_ACTION", "SmsManager", "Pattern.compile"],
