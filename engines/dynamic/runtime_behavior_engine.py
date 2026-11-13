@@ -1,6 +1,7 @@
 # engines/dynamic/runtime_behavior_engine.py
 import time
 import subprocess
+import re
 from typing import List, Set
 from core.models import Finding, Severity, CheckStatus
 
@@ -21,32 +22,30 @@ class RuntimeBehaviorEngine:
             return f"ERROR: {str(e)}"
 
     def discover_exported_activities(self) -> List[str]:
-        """Queries dumpsys package to discover all exported activities for the target package."""
+        """Parse only the Activity Resolver Table and normalize component tokens."""
         raw_dump = self._adb_exec(["shell", "dumpsys", "package", self.package_name])
         activities: Set[str] = set()
-
-        # Parse Activity Resolver Table in dumpsys output
         capture = False
+        pattern = re.compile(r"(?<![A-Za-z0-9_.$])" + re.escape(self.package_name) + r"/([A-Za-z0-9_.$]+)")
         for line in raw_dump.splitlines():
             clean = line.strip()
             if "Activity Resolver Table:" in clean:
                 capture = True
                 continue
-            if capture and ("Receiver Resolver Table:" in clean or "Service Resolver Table:" in clean):
+            if capture and any(header in clean for header in ("Receiver Resolver Table:", "Service Resolver Table:", "ContentProvider Authorities:")):
                 break
-            if capture and f"{self.package_name}/" in clean:
-                parts = clean.split()
-                for token in parts:
-                    if f"{self.package_name}/" in token:
-                        act = token.split(f"{self.package_name}/")[-1].replace("filter", "").strip()
-                        if act and not act.startswith("."):
-                            activities.add(act)
-                        elif act.startswith("."):
-                            activities.add(f"{self.package_name}{act}")
+            if not capture:
+                continue
+            for match in pattern.finditer(clean):
+                name = match.group(1).rstrip(":}")
+                if not name:
+                    continue
+                normalized = name if name.startswith(self.package_name + ".") else (
+                    self.package_name + name if name.startswith(".") else self.package_name + "." + name)
+                activities.add(normalized)
+        return sorted(activities)
 
-        return sorted(list(activities))
-
-    def audit_dyn_030_screenshot_protection(self, test_activity: str) -> Finding:
+        def audit_dyn_030_screenshot_protection(self, test_activity: str) -> Finding:
         """Tests window capture protection (FLAG_SECURE) on an activity."""
         component = test_activity if "/" in test_activity else f"{self.package_name}/{test_activity}"
         
