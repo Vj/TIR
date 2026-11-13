@@ -51,6 +51,20 @@ class RootIsolationEngine:
         """
         su_check = self._adb_exec(["shell", "which su 2>/dev/null || ls /system/bin/su /system/xbin/su 2>/dev/null"])
         device_is_rooted = bool(su_check and "not found" not in su_check and "No such" not in su_check)
+        if not device_is_rooted:
+            return Finding(
+                check_id="ROT-021",
+                title="Root Behavior Not Evaluated on Clean Test Device",
+                category="MASVS-RESILIENCE",
+                tab_index=8,
+                severity=Severity.INFO,
+                status=CheckStatus.NEEDS_REVIEW,
+                analysis_type=AnalysisType.DYNAMIC,
+                description="No root indicator was found, so the application response to a rooted environment could not be evaluated.",
+                evidence="No su binary observed; this is test-environment context rather than an app failure.",
+                remediation="Repeat on an authorized rooted test device to evaluate the app response.",
+                coverage={"device": self.device_id},
+            )
 
         pid_before = self._adb_exec(["shell", f"pidof {self.package_name}"])
         if not pid_before:
@@ -113,8 +127,6 @@ class RootIsolationEngine:
         if "TracerPid:" in status_dump:
             tracer_pid = status_dump.split("TracerPid:")[-1].strip()
 
-        ps_output = self._adb_exec(["shell", "ps -A | grep -E 'frida|magisk' || true"])
-
         if tracer_pid != "0":
             return Finding(
                 check_id="ROT-022",
@@ -138,7 +150,7 @@ class RootIsolationEngine:
             status=CheckStatus.NEEDS_REVIEW,
             analysis_type=AnalysisType.DYNAMIC,
             description="Process is running without an active tracer attached (TracerPid: 0). Verify whether native integrity checks or runtime hook verifications are active.",
-            evidence=f"Target PID {first_pid}: TracerPid is 0. Running instrumentation processes: {ps_output or 'None detected'}.",
+            evidence=f"Target PID {first_pid}: TracerPid is 0. No active tracer is attached to the target process.",
             remediation="Implement runtime integrity checks, verify method hooking against ART memory tables, and detect dynamic instrumentation agents."
         )
 
