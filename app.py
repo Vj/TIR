@@ -33,6 +33,8 @@ def main():
     scan_parser.add_argument("--apk", required=True, help="Absolute path to target APK")
     scan_parser.add_argument("--output", default="report.pdf", help="Output path for the generated PDF/HTML report")
     scan_parser.add_argument("--targets-output", default="dynamic_targets.json", help="Static-to-dynamic target seed JSON path")
+    scan_parser.add_argument("--format", choices=("pdf", "html", "json", "sarif"), default="pdf", help="Report format")
+    scan_parser.add_argument("--baseline", help="Previous JSON report for New/Fixed/Regressed comparison")
 
     # 2. Dynamic Live Audit Subcommand
     dyn_parser = subparsers.add_parser("dynamic", help="Run active runtime audit with sandbox, root, and behavior checks")
@@ -49,6 +51,8 @@ def main():
     dyn_parser.add_argument("--mitm-flows", help="Optional metadata-only JSONL flow export from scripts/dynamic/mitm_export.py")
     dyn_parser.add_argument("--deep-link", action="append", default=[], help="Opt-in URI to invoke; must match an explicitly exported static target. May be repeated.")
     dyn_parser.add_argument("--max-ui-actions", type=int, default=12, help="Maximum UI taps when --explore is enabled (1-40)")
+    dyn_parser.add_argument("--format", choices=("html", "pdf", "json", "sarif"), default="html", help="Report format")
+    dyn_parser.add_argument("--baseline", help="Previous JSON report for New/Fixed/Regressed comparison")
 
     args = parser.parse_args()
 
@@ -87,7 +91,13 @@ def _handle_static_scan(args):
         findings=findings
     )
 
-    orchestrator.generate_pdf_report(session, output_pdf_path=output_path)
+    if args.format in ("json", "sarif"):
+        from reporting.exporters import export_findings
+        export_findings(findings, output_path, args.format, args.baseline)
+    elif args.format == "html":
+        orchestrator.generate_pdf_report(session, output_pdf_path=os.path.splitext(output_path)[0] + ".html")
+    else:
+        orchestrator.generate_pdf_report(session, output_pdf_path=output_path)
 
 def _handle_dynamic_scan(args):
     adb = ADBBridge()
@@ -356,8 +366,20 @@ def _handle_dynamic_scan(args):
             tool_version="TIR Auditor v2.4-enterprise",
             date=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         )
-        with open(args.output, "w", encoding="utf-8") as f:
-            f.write(html_out)
+        if args.format in ("json", "sarif"):
+            from reporting.exporters import export_findings
+            export_findings(all_findings, args.output, args.format, args.baseline)
+        elif args.format == "pdf":
+            try:
+                from weasyprint import HTML
+                HTML(string=html_out).write_pdf(args.output)
+            except (ImportError, OSError):
+                fallback = os.path.splitext(args.output)[0] + ".html"
+                with open(fallback, "w", encoding="utf-8") as f:
+                    f.write(html_out)
+        else:
+            with open(args.output, "w", encoding="utf-8") as f:
+                f.write(html_out)
         print(f"[+] Dynamic audit report generated: {os.path.abspath(args.output)}")
 
 if __name__ == "__main__":
