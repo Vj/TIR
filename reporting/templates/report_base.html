@@ -218,6 +218,24 @@
       </div>
     </div>
 
+    {% if regulatory_summary %}
+    <div class="tab-section">
+      <div class="tab-header" onclick="toggleAccordion(this)"><span>Executive Regulatory Readiness Summary</span><span>▼</span></div>
+      <div class="tab-content">
+        <p style="font-size:12px;color:#64748b;">{{ regulatory_disclaimer }}</p>
+        <table class="perm-table"><thead><tr><th>Rule</th><th>Mapped references</th><th>Evidence state</th><th>Scope and limitation</th></tr></thead><tbody>
+        {% for row in regulatory_summary %}
+          <tr><td><strong>{{ row.rule_id }}</strong><br>{{ row.title }}</td>
+          <td>{% for ref in row.references %}<span class="badge">{{ ref }}</span> {% endfor %}{% if not row.references %}<span class="badge">No direct statutory mapping</span>{% endif %}</td>
+          <td><strong>{{ row.state }}</strong><br>{{ row.evidence_count }} finding(s)</td>
+          <td>{{ row.scope_note }}</td></tr>
+        {% endfor %}
+        </tbody></table>
+        <p style="font-size:11px;color:#64748b;">“Evidence Collected” means a test produced evidence, not that the control is legally compliant. “Not Run” means no corresponding runtime evidence was collected.</p>
+      </div>
+    </div>
+    {% endif %}
+
     <!-- Prioritized Remediation Roadmap -->
     {% if roadmap %}
     <div class="tab-section">
@@ -379,6 +397,11 @@
             <span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 3px;">
               <strong>MASTG v2:</strong> {{ item.mastg_refs | join(', ') }}
               {% if item.rule_catalog_version %}<small>({{ item.rule_catalog_version }})</small>{% endif %}
+            </span>
+            {% endif %}
+            {% if item.regulatory_refs %}
+            <span style="background:#ede9fe;color:#5b21b6;padding:2px 6px;border-radius:3px;">
+              <strong>Regulatory:</strong> {{ item.regulatory_refs | join(", ") }}
             </span>
             {% endif %}
             {% if item.coverage.get('device') %}

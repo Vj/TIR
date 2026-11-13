@@ -207,3 +207,20 @@ python app.py dynamic --package com.example.app --format json --output runtime.j
 ```
 
 JSON exports include stable finding fingerprints and fixed fingerprints; current items are marked New, Regressed, Fixed, or Unchanged when a baseline is supplied. SARIF exports carry the same change state in result properties. Finding identity uses rule ID, affected component, and source file, so review identity changes when the underlying target changes.
+
+
+## Indian financial-sector mobile-control evidence
+
+Static rules `STA-REG-01` through `STA-REG-06` run during APK scans. Opt-in dynamic observations are available with:
+
+```sh
+python app.py dynamic --package com.example.app --regulatory-checks
+python app.py dynamic --package com.example.app --device emulator-5554 --regulatory-checks --regulatory-emulator-call
+python app.py dynamic --package com.example.app --regulatory-checks --official-installer com.android.vending
+```
+
+The call simulation is restricted to emulator serials and sends an emulator-only incoming call; it requests cancellation in cleanup. Other checks read system settings, UI warning keywords, installed-package metadata, display state, proxy state, and VPN indicators. They do not change proxy/VPN/CA settings, install a RAT stub, create virtual displays, or sideload/reinstall the target. Use a dedicated test emulator and review device state after call simulations.
+
+The checked-in `standards/indian_regulatory_mobile_catalog.json` maps rule IDs to source paragraphs and records applicability caveats. The report's Executive Regulatory Readiness Summary uses **Not Run**, **Needs Review**, **Observation**, and **Evidence Collected** states. These are evidence states, not legal compliance determinations.
+
+**Applicability matters:** RBI DPSC 2026 is scoped to the commercial banks defined in those Directions; mobile-app requirements are in paragraph 68. SEBI CSCRF applicability differs by RE category. The NPCI UPI OC-226/2025-26 source concerns optional additional authentication methods and their security validation; it does not establish a blanket Play Store-only rule, mandatory Google SMS Retriever use, or universal call/USB-debug blocking. TIR marks OTP auto-read/sender validation as analyst-defined and leaves statutory mapping empty where the cited text does not directly prescribe that implementation. Organizational governance, operational, API, incident-response, and other non-client controls remain outside these APK/runtime rule checks.
