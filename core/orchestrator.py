@@ -275,6 +275,12 @@ class TIROrchestrator:
         )
         
 
+        if output_pdf_path.lower().endswith(".html"):
+            with open(output_pdf_path, "w", encoding="utf-8") as report_file:
+                report_file.write(html_content)
+            print(f"[+] HTML audit report generated: {output_pdf_path}")
+            return
+
         try:
             from weasyprint import HTML
             HTML(string=html_content).write_pdf(output_pdf_path)
