@@ -1,0 +1,122 @@
+{
+  "catalog_version": "tir-regulatory-mobile-2026.1",
+  "reviewed": "2026-11-13",
+  "disclaimer": "Technical evidence mapping only. Does not determine legal applicability or certify compliance. Regulatory applicability depends on entity category, product, control objective, compensating controls, and current circulars; obtain compliance/legal review.",
+  "sources": [
+    {
+      "id": "RBI-DPSC-2026",
+      "title": "RBI (Commercial Banks – Digital Payment Security Controls) Directions, 2026",
+      "url": "https://www.rbi.org.in/Scripts/NotificationUser.aspx/www.mastercirculars.rbi.org.in/upload/notification/pdfs/NotificationPreVersion.aspx?id=13642",
+      "scope": "Commercial Banks as defined in the Directions; mobile payment controls in paragraph 68. Do not assume applicability to every app or RE."
+    },
+    {
+      "id": "NPCI-UPI-OC-226-2025",
+      "title": "NPCI UPI OC-226/2025-26, Additional Authentication Methods in UPI",
+      "url": "https://www.npci.org.in/uploads/UPI_OC_226_Introduction_of_Additional_Authentication_methods_in_UPI_ec075a3a14.pdf",
+      "scope": "UPI Member Issuer Banks, PSP Banks and UPI Applications. New authentication methods are optional; security/device validation applies to those methods. Does not prescribe Play Store-only installation or general SMS auto-read."
+    },
+    {
+      "id": "SEBI-CSCRF-2024",
+      "title": "SEBI Cybersecurity and Cyber Resilience Framework (CSCRF) for SEBI Regulated Entities, 2024",
+      "url": "https://www.sebi.gov.in/sebi_data/attachdocs/aug-2024/1724326790365.pdf",
+      "scope": "Applicability varies by RE category and control. Mobile Application Security control section (PDF pages 102–103); see applicable RE tier and amendments."
+    }
+  ],
+  "entries": {
+    "STA-REG-01": {
+      "title": "Device and SIM binding indicators",
+      "refs": [
+        "RBI-DPSC-2026-P68(6)",
+        "SEBI-CSCRF-2024-MOBILE(m)",
+        "NPCI-UPI-OC-226-2025-SECURITY-VALIDATION"
+      ],
+      "scope_note": "Static API markers cannot prove that the backend binds device, SIM, and service identity or that binding is enforced.",
+      "method": "static"
+    },
+    "STA-REG-02": {
+      "title": "Remote access and screen-sharing indicators",
+      "refs": [
+        "RBI-DPSC-2026-P68(2)(iv)",
+        "SEBI-CSCRF-2024-MOBILE(e,h)"
+      ],
+      "scope_note": "Package names, queries, and APIs are indicators only; app inventory can be obfuscated or dynamically resolved.",
+      "method": "static"
+    },
+    "STA-REG-03": {
+      "title": "Active voice call detection indicators",
+      "refs": [
+        "SEBI-CSCRF-2024-MOBILE(h)"
+      ],
+      "scope_note": "Call-state API usage does not prove user warning or transaction blocking; verify at runtime on an authorized test system.",
+      "method": "static"
+    },
+    "STA-REG-04": {
+      "title": "Developer options and installer integrity indicators",
+      "refs": [
+        "SEBI-CSCRF-2024-MOBILE(c)",
+        "RBI-DPSC-2026-P68(2)(i)"
+      ],
+      "scope_note": "Installer-source allow-listing is a recommended validation target, not a blanket Play Store-only mandate in the cited texts.",
+      "method": "static"
+    },
+    "STA-REG-05": {
+      "title": "OTP retrieval and sender validation indicators",
+      "refs": [],
+      "scope_note": "Heuristic rule only. The reviewed RBI/NPCI/SEBI sources do not prescribe Google SMS Retriever use or a specific sender-ID regex.",
+      "method": "static"
+    },
+    "STA-REG-06": {
+      "title": "Obfuscation and runtime integrity indicators",
+      "refs": [
+        "RBI-DPSC-2026-P68(2)(ix)",
+        "SEBI-CSCRF-2024-MOBILE(f,g)"
+      ],
+      "scope_note": "Presence of symbols or signature APIs is not proof that integrity validation is correctly enforced.",
+      "method": "static"
+    },
+    "DYN-REG-01": {
+      "title": "Developer options and USB debugging response",
+      "refs": [
+        "SEBI-CSCRF-2024-MOBILE(c)",
+        "RBI-DPSC-2026-P68(2)(i)"
+      ],
+      "scope_note": "TIR observes current device settings and app UI; checks cannot guarantee behavior on every sensitive transaction screen.",
+      "method": "dynamic"
+    },
+    "DYN-REG-02": {
+      "title": "Active call response",
+      "refs": [
+        "SEBI-CSCRF-2024-MOBILE(h)"
+      ],
+      "scope_note": "Emulator-only call simulation. No real phone call is initiated.",
+      "method": "dynamic"
+    },
+    "DYN-REG-03": {
+      "title": "Remote access and virtual display indicators",
+      "refs": [
+        "RBI-DPSC-2026-P68(2)(iv)",
+        "SEBI-CSCRF-2024-MOBILE(e,h)"
+      ],
+      "scope_note": "Read-only inventory/state inspection; no RAT package is installed and no display setting is changed.",
+      "method": "dynamic"
+    },
+    "DYN-REG-04": {
+      "title": "Proxy, VPN, and TLS observation",
+      "refs": [
+        "RBI-DPSC-2026-P68(9)",
+        "SEBI-CSCRF-2024-MOBILE(d)"
+      ],
+      "scope_note": "TIR observes existing network state and available capture; it does not set proxy/VPN/CA state or bypass pinning.",
+      "method": "dynamic"
+    },
+    "DYN-REG-05": {
+      "title": "Installer source and secure install evidence",
+      "refs": [
+        "RBI-DPSC-2026-P68(2)(ii)",
+        "SEBI-CSCRF-2024-MOBILE(e)"
+      ],
+      "scope_note": "Reports the installed package source only. TIR does not uninstall/reinstall or assume a single official installer.",
+      "method": "dynamic"
+    }
+  }
+}
