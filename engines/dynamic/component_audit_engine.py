@@ -22,38 +22,36 @@ class ComponentAuditEngine:
             return f"ERROR: {str(e)}"
 
     def discover_components(self) -> Dict[str, List[str]]:
-        """Parses dumpsys package to catalog exported activities, receivers, and services."""
+        """Parse resolver-table sections without mixing component types."""
         raw_dump = self._adb_exec(["shell", "dumpsys", "package", self.package_name])
-        components = {
-            "activities": set(),
-            "services": set(),
-            "receivers": set()
+        components = {"activities": set(), "services": set(), "receivers": set()}
+        sections = {
+            "Activity Resolver Table:": "activities",
+            "Service Resolver Table:": "services",
+            "Receiver Resolver Table:": "receivers",
         }
-
         current_section = None
+        component_token = re.compile(r"(?<![A-Za-z0-9_.$])" + re.escape(self.package_name) + r"/([A-Za-z0-9_.$]+)")
         for line in raw_dump.splitlines():
             clean = line.strip()
-            if "Activity Resolver Table:" in clean:
-                current_section = "activities"
+            matched_header = next((kind for header, kind in sections.items() if header in clean), None)
+            if matched_header:
+                current_section = matched_header
                 continue
-            elif "Receiver Resolver Table:" in clean:
-                current_section = "receivers"
-                continue
-            elif "Service Resolver Table:" in clean:
-                current_section = "services"
-                continue
-            elif "ContentProvider Authorities:" in clean or "Key Set Manager:" in clean:
+            if clean.endswith(":") and ("Resolver Table" in clean or "ContentProvider" in clean or "Key Set" in clean):
                 current_section = None
-
-            if current_section and f"{self.package_name}/" in clean:
-                for token in clean.split():
-                    if f"{self.package_name}/" in token:
-                        comp = token.split(f"{self.package_name}/")[-1].replace("filter", "").strip()
-                        if comp:
-                            clean_name = comp if comp.startswith(self.package_name) else f"{self.package_name}.{comp.lstrip('.')}"
-                            components[current_section].add(clean_name)
-
-        return {k: sorted(list(v)) for k, v in components.items()}
+                continue
+            if not current_section:
+                continue
+            for match in component_token.finditer(clean):
+                name = match.group(1).rstrip(":}")
+                if not name:
+                    continue
+                normalized = name if name.startswith(self.package_name + ".") else (
+                    self.package_name + name if name.startswith(".") else self.package_name + "." + name
+                )
+                components[current_section].add(normalized)
+        return {key: sorted(values) for key, values in components.items()}
 
     def _normalize_static_targets(self, targets: Dict[str, Any]) -> Dict[str, Any]:
         """Accept only package-owned component names and syntactically safe authorities."""

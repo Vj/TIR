@@ -192,3 +192,18 @@ Install Frida's Python bindings compatible with the device's Frida server before
 Dynamic correlation runs the static scan when `--apk` is supplied, validates the target package, and combines matching evidence. Runtime non-observation is kept separate from proven unreachability. UI exploration is opt-in, bounded to 1–40 taps, skips unlabeled controls and controls with common destructive/action labels, enters no text, and never records sandbox file contents. The differential snapshot stores only paths and SHA-256 digests; app-private access may require a debuggable test build, and external-storage coverage depends on Android version and device policy.
 
 SBOM package fingerprints are inventory hints: TIR extracts Maven metadata when packaged but does not establish exact versions for every bundled library or query a vulnerability database. Call-graph reachability is optional and annotates component findings only when the analyzer can prove a match; it never suppresses findings. Frida and proxy capture are optional adapters and require an analyst-configured test environment. No automated MASVS compliance claim is made.
+
+
+## Dynamic report metadata and CI exports
+
+Dynamic-only HTML reports collect installed package metadata through ADB. TIR resolves the base APK with `pm path`, reads the package version and SDK levels, hashes a temporary local pull, and attempts signing-certificate fingerprint extraction with `apksigner`. If the device or host tools do not expose a value, the report labels that field as unavailable or unverified.
+
+Export findings as JSON or SARIF, and compare current findings to a prior JSON export:
+
+```sh
+python app.py scan --apk target.apk --format json --output audit.json
+python app.py scan --apk target.apk --format sarif --output audit.sarif --baseline previous.json
+python app.py dynamic --package com.example.app --format json --output runtime.json --baseline previous.json
+```
+
+JSON exports include stable finding fingerprints and fixed fingerprints; current items are marked New, Regressed, Fixed, or Unchanged when a baseline is supplied. SARIF exports carry the same change state in result properties. Finding identity uses rule ID, affected component, and source file, so review identity changes when the underlying target changes.

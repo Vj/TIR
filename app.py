@@ -33,6 +33,8 @@ def main():
     scan_parser.add_argument("--apk", required=True, help="Absolute path to target APK")
     scan_parser.add_argument("--output", default="report.pdf", help="Output path for the generated PDF/HTML report")
     scan_parser.add_argument("--targets-output", default="dynamic_targets.json", help="Static-to-dynamic target seed JSON path")
+    scan_parser.add_argument("--format", choices=("pdf", "html", "json", "sarif"), default="pdf", help="Report format")
+    scan_parser.add_argument("--baseline", help="Previous JSON report for New/Fixed/Regressed comparison")
 
     # 2. Dynamic Live Audit Subcommand
     dyn_parser = subparsers.add_parser("dynamic", help="Run active runtime audit with sandbox, root, and behavior checks")
@@ -49,6 +51,8 @@ def main():
     dyn_parser.add_argument("--mitm-flows", help="Optional metadata-only JSONL flow export from scripts/dynamic/mitm_export.py")
     dyn_parser.add_argument("--deep-link", action="append", default=[], help="Opt-in URI to invoke; must match an explicitly exported static target. May be repeated.")
     dyn_parser.add_argument("--max-ui-actions", type=int, default=12, help="Maximum UI taps when --explore is enabled (1-40)")
+    dyn_parser.add_argument("--format", choices=("html", "pdf", "json", "sarif"), default="html", help="Report format")
+    dyn_parser.add_argument("--baseline", help="Previous JSON report for New/Fixed/Regressed comparison")
 
     args = parser.parse_args()
 
@@ -87,7 +91,13 @@ def _handle_static_scan(args):
         findings=findings
     )
 
-    orchestrator.generate_pdf_report(session, output_pdf_path=output_path)
+    if args.format in ("json", "sarif"):
+        from reporting.exporters import export_findings
+        export_findings(findings, output_path, args.format, args.baseline)
+    elif args.format == "html":
+        orchestrator.generate_pdf_report(session, output_pdf_path=os.path.splitext(output_path)[0] + ".html")
+    else:
+        orchestrator.generate_pdf_report(session, output_pdf_path=output_path)
 
 def _handle_dynamic_scan(args):
     adb = ADBBridge()
@@ -289,6 +299,20 @@ def _handle_dynamic_scan(args):
         print("[*] Reviewing metadata-only proxy flow export...")
         all_dynamic_findings.extend(NetworkCaptureEngine(args.mitm_flows, device_id=device_id).audit())
 
+    # Merge overlapping DYN-035 database probes by normalized path.
+    storage_rows = {}
+    other_rows = []
+    for finding in all_dynamic_findings:
+        if finding.check_id != "DYN-035":
+            other_rows.append(finding)
+            continue
+        target = (finding.affected_component or finding.title).lower().rstrip("/")
+        prior = storage_rows.get(target)
+        if prior is None:
+            storage_rows[target] = finding
+        elif prior.status != CheckStatus.FAIL and finding.status == CheckStatus.FAIL:
+            storage_rows[target] = finding
+    all_dynamic_findings = other_rows + list(storage_rows.values())
     # Correlate static and dynamic evidence without converting lack of observation to proof.
     dynamic_findings = [
         item.model_copy(update={"coverage": {**item.coverage, "device": device_id}})
@@ -304,6 +328,7 @@ def _handle_dynamic_scan(args):
                 "verification_status": VerificationStatus.DYNAMICALLY_CONFIRMED
                 if item.status == CheckStatus.FAIL else VerificationStatus.NOT_OBSERVED
                 if item.status == CheckStatus.PASS else VerificationStatus.UNVERIFIED,
+                "confidence_score": 0.95 if item.status == CheckStatus.FAIL and item.evidence else 0.7 if item.status == CheckStatus.PASS else 0.5,
             })
             for item in all_findings
         ]
@@ -317,6 +342,11 @@ def _handle_dynamic_scan(args):
         timestamp=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         findings=all_findings
     )
+    if not static_orchestrator:
+        from reporting.runtime_metadata import collect_installed_metadata
+        runtime_meta = collect_installed_metadata(args.package, device_id)
+        for field, value in runtime_meta.items():
+            setattr(session, field, value)
 
     orchestrator = static_orchestrator
     if orchestrator:
@@ -328,18 +358,42 @@ def _handle_dynamic_scan(args):
         env = Environment(loader=FileSystemLoader(tpl_dir))
         template = env.get_template("report_base.html")
 
-        counts = {"Critical": 0, "High": 0, "Medium": 0, "Low": 0, "Informational": 0}
-        for f in all_dynamic_findings:
-            if f.status == CheckStatus.FAIL:
-                counts[f.severity.value] = counts.get(f.severity.value, 0) + 1
-
+        counts = {"Total": len(all_findings), "Fail": 0, "Needs_Review": 0, "Pass": 0, "Critical": 0, "High": 0, "Medium": 0, "Low": 0, "Informational": 0}
+        for finding in all_findings:
+            if finding.status == CheckStatus.FAIL:
+                counts["Fail"] += 1
+                counts[finding.severity.value] += 1
+            elif finding.status == CheckStatus.NEEDS_REVIEW:
+                counts["Needs_Review"] += 1
+                counts[finding.severity.value] += 1
+            elif finding.status == CheckStatus.PASS:
+                counts["Pass"] += 1
+        roadmap = {
+            "immediate": [f for f in all_findings if f.severity.value in ("Critical", "High") and f.status in (CheckStatus.FAIL, CheckStatus.NEEDS_REVIEW)],
+            "short_term": [f for f in all_findings if f.status == CheckStatus.FAIL and f.severity.value == "Medium"],
+            "scheduled": [f for f in all_findings if f.status == CheckStatus.NEEDS_REVIEW and f.severity.value not in ("Critical", "High")],
+        }
         html_out = template.render(
             session=session,
             counts=counts,
+            roadmap=roadmap,
+            tool_version="TIR Auditor v2.4-enterprise",
             date=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         )
-        with open(args.output, "w", encoding="utf-8") as f:
-            f.write(html_out)
+        if args.format in ("json", "sarif"):
+            from reporting.exporters import export_findings
+            export_findings(all_findings, args.output, args.format, args.baseline)
+        elif args.format == "pdf":
+            try:
+                from weasyprint import HTML
+                HTML(string=html_out).write_pdf(args.output)
+            except (ImportError, OSError):
+                fallback = os.path.splitext(args.output)[0] + ".html"
+                with open(fallback, "w", encoding="utf-8") as f:
+                    f.write(html_out)
+        else:
+            with open(args.output, "w", encoding="utf-8") as f:
+                f.write(html_out)
         print(f"[+] Dynamic audit report generated: {os.path.abspath(args.output)}")
 
 if __name__ == "__main__":

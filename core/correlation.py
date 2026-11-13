@@ -50,7 +50,7 @@ def correlate_findings(static_findings: List[Finding], dynamic_findings: List[Fi
                 if dynamic.status.value == "Fail" else VerificationStatus.NOT_OBSERVED
                 if dynamic.status.value == "Pass" else VerificationStatus.UNVERIFIED,
                 "confidence": Confidence.HIGH if dynamic.status.value == "Fail" else dynamic.confidence,
-                "confidence_score": 0.9 if dynamic.status.value == "Fail" else max(dynamic.confidence_score, 0.55),
+                "confidence_score": 0.95 if dynamic.status.value == "Fail" and dynamic.evidence else 0.5 if dynamic.status.value != "Pass" else 0.7,
             }))
             continue
         for index in matches:
@@ -96,7 +96,7 @@ def correlate_findings(static_findings: List[Finding], dynamic_findings: List[Fi
             "analysis_type": AnalysisType.HYBRID,
             "verification_status": runtime_status,
             "confidence": Confidence.HIGH if confirmed else Confidence.MEDIUM,
-            "confidence_score": 0.9 if confirmed else 0.45 if runtime_status == VerificationStatus.NOT_OBSERVED else 0.5,
+            "confidence_score": 0.95 if confirmed and any(item.evidence for item in evidence) else 0.7 if runtime_status == VerificationStatus.NOT_OBSERVED else 0.5,
             "evidence": text_evidence,
             "metadata": {**static.metadata, "correlated_dynamic_findings": combined},
         }))

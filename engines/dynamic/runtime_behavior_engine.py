@@ -1,6 +1,10 @@
 # engines/dynamic/runtime_behavior_engine.py
 import time
 import subprocess
+import re
+import base64
+import tempfile
+import os
 from typing import List, Set
 from core.models import Finding, Severity, CheckStatus
 
@@ -21,30 +25,28 @@ class RuntimeBehaviorEngine:
             return f"ERROR: {str(e)}"
 
     def discover_exported_activities(self) -> List[str]:
-        """Queries dumpsys package to discover all exported activities for the target package."""
+        """Parse only the Activity Resolver Table and normalize component tokens."""
         raw_dump = self._adb_exec(["shell", "dumpsys", "package", self.package_name])
         activities: Set[str] = set()
-
-        # Parse Activity Resolver Table in dumpsys output
         capture = False
+        pattern = re.compile(r"(?<![A-Za-z0-9_.$])" + re.escape(self.package_name) + r"/([A-Za-z0-9_.$]+)")
         for line in raw_dump.splitlines():
             clean = line.strip()
             if "Activity Resolver Table:" in clean:
                 capture = True
                 continue
-            if capture and ("Receiver Resolver Table:" in clean or "Service Resolver Table:" in clean):
+            if capture and any(header in clean for header in ("Receiver Resolver Table:", "Service Resolver Table:", "ContentProvider Authorities:")):
                 break
-            if capture and f"{self.package_name}/" in clean:
-                parts = clean.split()
-                for token in parts:
-                    if f"{self.package_name}/" in token:
-                        act = token.split(f"{self.package_name}/")[-1].replace("filter", "").strip()
-                        if act and not act.startswith("."):
-                            activities.add(act)
-                        elif act.startswith("."):
-                            activities.add(f"{self.package_name}{act}")
-
-        return sorted(list(activities))
+            if not capture:
+                continue
+            for match in pattern.finditer(clean):
+                name = match.group(1).rstrip(":}")
+                if not name:
+                    continue
+                normalized = name if name.startswith(self.package_name + ".") else (
+                    self.package_name + name if name.startswith(".") else self.package_name + "." + name)
+                activities.add(normalized)
+        return sorted(activities)
 
     def audit_dyn_030_screenshot_protection(self, test_activity: str) -> Finding:
         """Tests window capture protection (FLAG_SECURE) on an activity."""
@@ -57,7 +59,19 @@ class RuntimeBehaviorEngine:
         tmp_png = f"/data/local/tmp/tir_snap_{int(time.time())}.png"
         capture_result = self._adb_exec(["shell", "screencap", "-p", tmp_png])
         check_file = self._adb_exec(["shell", "ls", "-l", tmp_png])
-        self._adb_exec(["shell", "rm", "-f", tmp_png])
+        evidence_image = None
+        try:
+            with tempfile.TemporaryDirectory(prefix="tir-screen-") as temp_dir:
+                local_png = os.path.join(temp_dir, "capture.png")
+                command = ["adb"] + (["-s", self.device_id] if self.device_id else []) + ["pull", tmp_png, local_png]
+                pulled = subprocess.run(command, capture_output=True, timeout=30, check=False)
+                if pulled.returncode == 0 and os.path.isfile(local_png):
+                    with open(local_png, "rb") as image_file:
+                        evidence_image = "data:image/png;base64," + base64.b64encode(image_file.read()).decode("ascii")
+        except (OSError, subprocess.TimeoutExpired):
+            evidence_image = None
+        finally:
+            self._adb_exec(["shell", "rm", "-f", tmp_png])
 
         if "Status 1" in capture_result or "Permission denied" in capture_result or "failed" in capture_result.lower():
             return Finding(
@@ -81,6 +95,7 @@ class RuntimeBehaviorEngine:
                 status=CheckStatus.FAIL,
                 description=f"Activity '{test_activity}' does not set FLAG_SECURE. Sensitive UI fields remain exposed to background screenshot captures and task switchers.",
                 evidence=f"Screen snapshot captured via screencap: {check_file.strip()}",
+                evidence_image=evidence_image,
                 remediation="Add getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE) in onCreate()."
             )
 

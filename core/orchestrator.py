@@ -48,7 +48,7 @@ class TIROrchestrator:
         self.crypto_auth = CryptoAuthEngine(apk_path)
         self.net_plat = NetworkPlatformEngine(apk_path)
         self.code_resil = CodeResilienceEngine(apk_path)
-        self.privacy = PrivacyEngine(apk_path, self.metadata.get("permissions", []))
+        self.privacy = PrivacyEngine(apk_path, self.metadata.get("permissions", []), self.metadata.get("target_sdk"))
         self.supply_logs = SupplyChainLoggingEngine(apk_path)
         self.asset_scanner = AssetFileEngine(apk_path)
         self.component_backup = ComponentBackupEngine(apk_path, manifest_str)
@@ -72,8 +72,9 @@ class TIROrchestrator:
         """Deduplicates findings based on Check ID, title, and target location snippet."""
         unique: Dict[tuple, Finding] = {}
         for f in findings:
-            key = (f.check_id, f.title.strip(), (f.evidence[:80] if f.evidence else ""))
-            if key not in unique:
+            bridge_match = "addjavascriptinterface" in (f.evidence or "").lower() or "javascript interface" in f.title.lower()
+            key = ("webview-bridge",) if bridge_match else (f.check_id, f.title.strip(), (f.evidence[:80] if f.evidence else ""))
+            if key not in unique or (bridge_match and f.check_id == "STA-024"):
                 unique[key] = f
         return list(unique.values())
 
@@ -260,9 +261,9 @@ class TIROrchestrator:
 
         # Compute Prioritized Remediation Roadmap
         roadmap = {
-            "immediate": [f for f in session.findings if f.status == CheckStatus.FAIL and f.severity in (Severity.CRITICAL, Severity.HIGH)],
+            "immediate": [f for f in session.findings if f.severity in (Severity.CRITICAL, Severity.HIGH) and f.status in (CheckStatus.FAIL, CheckStatus.NEEDS_REVIEW)],
             "short_term": [f for f in session.findings if f.status == CheckStatus.FAIL and f.severity == Severity.MEDIUM],
-            "scheduled": [f for f in session.findings if f.status == CheckStatus.NEEDS_REVIEW or f.severity == Severity.LOW]
+            "scheduled": [f for f in session.findings if (f.status == CheckStatus.NEEDS_REVIEW or f.severity == Severity.LOW) and not (f.status == CheckStatus.NEEDS_REVIEW and f.severity in (Severity.CRITICAL, Severity.HIGH))]
         }
 
         html_content = template.render(
@@ -273,6 +274,12 @@ class TIROrchestrator:
             date=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         )
         
+
+        if output_pdf_path.lower().endswith(".html"):
+            with open(output_pdf_path, "w", encoding="utf-8") as report_file:
+                report_file.write(html_content)
+            print(f"[+] HTML audit report generated: {output_pdf_path}")
+            return
 
         try:
             from weasyprint import HTML
