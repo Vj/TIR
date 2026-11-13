@@ -51,7 +51,7 @@ def export_findings(findings, output_path, output_format="json", baseline_path=N
           "results": [{"ruleId": item.check_id, "level": "error" if item.severity.value in ("Critical", "High") else "warning",
           "message": {"text": item.description}, "locations": ([{"physicalLocation": {"artifactLocation": {"uri": item.source_file}}}] if item.source_file else []),
           "properties": {"status": item.status.value, "verification_status": item.verification_status.value,
-          "confidence_score": item.confidence_score, "maswe": item.maswe_refs, "mastg": item.mastg_refs,
+          "confidence_score": item.confidence_score, "maswe": item.maswe_refs, "mastg": item.mastg_refs, "regulatory_refs": item.regulatory_refs,
           "fingerprint": _key(item), "change": states.get(_key(item), "Unchanged")}} for item in findings]}]}
     else:
         raise ValueError("Unsupported report format: " + output_format)
