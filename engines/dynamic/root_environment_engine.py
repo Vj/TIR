@@ -1,7 +1,7 @@
 # engines/dynamic/root_environment_engine.py
 import subprocess
 from typing import List, Dict, Any
-from core.models import Finding, Severity, CheckStatus
+from core.models import Finding, Severity, CheckStatus, AnalysisType
 from engines.dynamic.adb_client import ADBBridge
 
 class RootEnvironmentEngine:
