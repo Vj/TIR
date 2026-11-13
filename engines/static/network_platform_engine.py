@@ -3,7 +3,7 @@ import zipfile
 import xml.etree.ElementTree as ET
 from typing import List
 from lxml import etree
-from core.models import Finding, Severity, CheckStatus
+from core.models import Finding, Severity, CheckStatus, Any
 
 class NetworkPlatformEngine:
     def __init__(self, apk_path: str):
