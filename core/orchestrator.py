@@ -260,7 +260,7 @@ class TIROrchestrator:
 
         # Compute Prioritized Remediation Roadmap
         roadmap = {
-            "immediate": [f for f in session.findings if f.status == CheckStatus.FAIL and f.severity in (Severity.CRITICAL, Severity.HIGH)],
+            "immediate": [f for f in session.findings if f.severity in (Severity.CRITICAL, Severity.HIGH) and f.status in (CheckStatus.FAIL, CheckStatus.NEEDS_REVIEW)],
             "short_term": [f for f in session.findings if f.status == CheckStatus.FAIL and f.severity == Severity.MEDIUM],
             "scheduled": [f for f in session.findings if f.status == CheckStatus.NEEDS_REVIEW or f.severity == Severity.LOW]
         }
