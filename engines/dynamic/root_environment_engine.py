@@ -94,7 +94,7 @@ class RootEnvironmentEngine:
             coverage={"device": self.device_id},
         )]
 
-        def _audit_rot_025_debug_interfaces(self) -> List[Finding]:
+    def _audit_rot_025_debug_interfaces(self) -> List[Finding]:
         """ROT-025: Verify JDWP (Java Debug Wire Protocol) and debug port exposure."""
         findings = []
         jdwp_pids = self._adb_exec("jdwp").splitlines()
