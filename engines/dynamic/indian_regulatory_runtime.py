@@ -18,6 +18,8 @@ WARNING_WORDS = ("warning", "security", "screen sharing", "remote access", "acti
 
 class IndianRegulatoryRuntimeEngine:
     def __init__(self, package_name: str, device_id: Optional[str] = None, adb_path: str = "adb"):
+        if not re.fullmatch(r"[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+", package_name):
+            raise ValueError("Invalid Android package name")
         self.package_name = package_name
         self.device_id = device_id
         self.adb_path = adb_path
@@ -121,8 +123,10 @@ class IndianRegulatoryRuntimeEngine:
             raise ValueError("Invalid simulated phone number")
         target = self.package_name
         accepted = False
+        call_attempted = False
         evidence = []
         try:
+            call_attempted = True
             call = self._adb(["emu", "gsm", "call", phone_number], timeout=10)
             evidence.append("incoming call command accepted" if call.returncode == 0 else "incoming call command failed")
             if call.returncode != 0:
@@ -150,5 +154,5 @@ class IndianRegulatoryRuntimeEngine:
             return self._finding("DYN-REG-02", "Active call response simulation unavailable",
                 CheckStatus.NEEDS_REVIEW, str(exc)[:200], "The emulator call-state probe could not complete.")
         finally:
-            if accepted:
+            if call_attempted:
                 self._adb(["emu", "gsm", "cancel", phone_number], timeout=10)
