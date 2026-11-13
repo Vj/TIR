@@ -299,6 +299,20 @@ def _handle_dynamic_scan(args):
         print("[*] Reviewing metadata-only proxy flow export...")
         all_dynamic_findings.extend(NetworkCaptureEngine(args.mitm_flows, device_id=device_id).audit())
 
+    # Merge overlapping DYN-035 database probes by normalized path.
+    storage_rows = {}
+    other_rows = []
+    for finding in all_dynamic_findings:
+        if finding.check_id != "DYN-035":
+            other_rows.append(finding)
+            continue
+        target = (finding.affected_component or finding.title).lower().rstrip("/")
+        prior = storage_rows.get(target)
+        if prior is None:
+            storage_rows[target] = finding
+        elif prior.status != CheckStatus.FAIL and finding.status == CheckStatus.FAIL:
+            storage_rows[target] = finding
+    all_dynamic_findings = other_rows + list(storage_rows.values())
     # Correlate static and dynamic evidence without converting lack of observation to proof.
     dynamic_findings = [
         item.model_copy(update={"coverage": {**item.coverage, "device": device_id}})
