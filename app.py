@@ -318,6 +318,11 @@ def _handle_dynamic_scan(args):
         timestamp=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         findings=all_findings
     )
+    if not static_orchestrator:
+        from reporting.runtime_metadata import collect_installed_metadata
+        runtime_meta = collect_installed_metadata(args.package, device_id)
+        for field, value in runtime_meta.items():
+            setattr(session, field, value)
 
     orchestrator = static_orchestrator
     if orchestrator:
