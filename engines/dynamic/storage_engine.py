@@ -32,8 +32,8 @@ class StorageEngine:
                         title=f"Sensitive Plaintext Key in {pref_file}",
                         category="MASVS-STORAGE",
                         tab_index=2,
-                        severity=Severity.MEDIUM,
-                        status=CheckStatus.NEEDS_REVIEW,
+                        severity=Severity.HIGH,
+                        status=CheckStatus.FAIL,
                         description="Plaintext credential/token pattern detected in SharedPreferences XML.",
                         evidence=line.strip(),
                         remediation="Use androidx.security.crypto.EncryptedSharedPreferences."
@@ -59,10 +59,11 @@ class StorageEngine:
                         title=f"Unencrypted SQLite Database on Disk: {db_file}",
                         category="MASVS-STORAGE",
                         tab_index=2,
-                        severity=Severity.HIGH,
-                        status=CheckStatus.FAIL,
+                        severity=Severity.MEDIUM,
+                        status=CheckStatus.NEEDS_REVIEW,
                         description=f"Database file '{db_file}' is a standard unencrypted SQLite file.",
                         evidence=f"Header: {header}",
+                        affected_component=f"/data/data/{self.pkg}/databases/{db_file}",
                         remediation="Encrypt local database files using SQLCipher or Android Room encryption wrappers."
                     ))
         return findings
