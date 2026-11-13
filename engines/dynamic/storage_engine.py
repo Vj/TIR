@@ -32,8 +32,8 @@ class StorageEngine:
                         title=f"Sensitive Plaintext Key in {pref_file}",
                         category="MASVS-STORAGE",
                         tab_index=2,
-                        severity=Severity.HIGH,
-                        status=CheckStatus.FAIL,
+                        severity=Severity.MEDIUM,
+                        status=CheckStatus.NEEDS_REVIEW,
                         description="Plaintext credential/token pattern detected in SharedPreferences XML.",
                         evidence=line.strip(),
                         remediation="Use androidx.security.crypto.EncryptedSharedPreferences."
@@ -55,8 +55,8 @@ class StorageEngine:
                 # Standard SQLite header string
                 if "SQLite format 3" in header:
                     findings.append(Finding(
-                        check_id="AND-STOR-02",
-                        title=f"Unencrypted Database: {db_file}",
+                        check_id="DYN-035",
+                        title=f"Unencrypted SQLite Database on Disk: {db_file}",
                         category="MASVS-STORAGE",
                         tab_index=2,
                         severity=Severity.HIGH,
