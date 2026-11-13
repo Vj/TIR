@@ -68,32 +68,33 @@ class RootEnvironmentEngine:
         return findings
 
     def _audit_rot_024_system_properties(self) -> List[Finding]:
-        """ROT-024: Validate Android system properties (ro.debuggable, ro.secure)."""
-        findings = []
+        """Report device properties as test-environment context, never app vulnerabilities."""
         ro_debuggable = self._adb_exec("getprop ro.debuggable")
         ro_secure = self._adb_exec("getprop ro.secure")
-
-        insecure_props = []
+        process_list = self._adb_exec("ps -A")
+        indicators = []
         if ro_debuggable == "1":
-            insecure_props.append("ro.debuggable=1 (Device kernel allows global debugging)")
+            indicators.append("ro.debuggable=1")
         if ro_secure == "0":
-            insecure_props.append("ro.secure=0 (Device operating with disabled root restrictions)")
+            indicators.append("ro.secure=0")
+        if any(token in process_list.lower() for token in ("frida-server", "magisk")):
+            indicators.append("instrumentation/root process detected")
+        return [Finding(
+            check_id="TIR-ENVIRONMENT-BANNER",
+            title="Test Environment Banner",
+            category="Test Environment",
+            tab_index=8,
+            severity=Severity.INFO,
+            status=CheckStatus.NEEDS_REVIEW if indicators else CheckStatus.PASS,
+            description="Device-level properties are context for this audit and are not evidence of an application weakness.",
+            evidence="; ".join(indicators) if indicators else "No flagged device-level environment indicators observed.",
+            remediation="Interpret resilience results in the context of this test device; repeat on a representative production-like device.",
+            analysis_type=AnalysisType.DYNAMIC,
+            confidence_score=0.5 if indicators else 0.7,
+            coverage={"device": self.device_id},
+        )]
 
-        if insecure_props:
-            findings.append(Finding(
-                check_id="ROT-024",
-                title="Device Operating Under Insecure Global System Properties",
-                category="MASVS-RESILIENCE",
-                tab_index=8,
-                severity=Severity.MEDIUM,
-                status=CheckStatus.NEEDS_REVIEW,
-                description="The test execution device runs on a development or rooted build.",
-                evidence="\n".join(insecure_props),
-                remediation="Ensure client releases disable sensitive operations when running under custom rooted build properties."
-            ))
-        return findings
-
-    def _audit_rot_025_debug_interfaces(self) -> List[Finding]:
+        def _audit_rot_025_debug_interfaces(self) -> List[Finding]:
         """ROT-025: Verify JDWP (Java Debug Wire Protocol) and debug port exposure."""
         findings = []
         jdwp_pids = self._adb_exec("jdwp").splitlines()
