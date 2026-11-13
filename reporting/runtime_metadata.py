@@ -17,9 +17,9 @@ def collect_installed_metadata(package, device=None, adb_path="adb"):
                               encoding="utf-8", errors="replace", timeout=timeout, check=False)
     try:
         dump = adb(["shell", "dumpsys", "package", package]).stdout
-        patterns = {"version_name": r"versionName=([^\\s]+)",
-                    "version_code": r"versionCode=([^\\s]+)",
-                    "target_sdk": r"targetSdk=(\\d+)", "min_sdk": r"minSdk=(\\d+)"}
+        patterns = {"version_name": r"versionName=([^\s]+)",
+                    "version_code": r"versionCode=([^\s]+)",
+                    "target_sdk": r"targetSdk=(\d+)", "min_sdk": r"minSdk=(\d+)"}
         for field, pattern in patterns.items():
             match = re.search(pattern, dump)
             if match:
@@ -41,7 +41,7 @@ def collect_installed_metadata(package, device=None, adb_path="adb"):
                     signer = subprocess.run(["apksigner", "verify", "--print-certs", local_path],
                         capture_output=True, text=True, encoding="utf-8", errors="replace",
                         timeout=30, check=False)
-                    match = re.search(r"SHA-256 certificate digest:\\s*([0-9a-fA-F:]+)", signer.stdout)
+                    match = re.search(r"SHA-256 certificate digest:\s*([0-9a-fA-F:]+)", signer.stdout)
                     if signer.returncode == 0 and match:
                         result["cert_status"] = "Verified"
                         result["cert_fingerprint"] = match.group(1)
