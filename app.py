@@ -328,14 +328,26 @@ def _handle_dynamic_scan(args):
         env = Environment(loader=FileSystemLoader(tpl_dir))
         template = env.get_template("report_base.html")
 
-        counts = {"Critical": 0, "High": 0, "Medium": 0, "Low": 0, "Informational": 0}
-        for f in all_dynamic_findings:
-            if f.status == CheckStatus.FAIL:
-                counts[f.severity.value] = counts.get(f.severity.value, 0) + 1
-
+        counts = {"Total": len(all_findings), "Fail": 0, "Needs_Review": 0, "Pass": 0, "Critical": 0, "High": 0, "Medium": 0, "Low": 0, "Informational": 0}
+        for finding in all_findings:
+            if finding.status == CheckStatus.FAIL:
+                counts["Fail"] += 1
+                counts[finding.severity.value] += 1
+            elif finding.status == CheckStatus.NEEDS_REVIEW:
+                counts["Needs_Review"] += 1
+                counts[finding.severity.value] += 1
+            elif finding.status == CheckStatus.PASS:
+                counts["Pass"] += 1
+        roadmap = {
+            "immediate": [f for f in all_findings if f.severity.value in ("Critical", "High") and f.status in (CheckStatus.FAIL, CheckStatus.NEEDS_REVIEW)],
+            "short_term": [f for f in all_findings if f.status == CheckStatus.FAIL and f.severity.value == "Medium"],
+            "scheduled": [f for f in all_findings if f.status == CheckStatus.NEEDS_REVIEW and f.severity.value not in ("Critical", "High")],
+        }
         html_out = template.render(
             session=session,
             counts=counts,
+            roadmap=roadmap,
+            tool_version="TIR Auditor v2.4-enterprise",
             date=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         )
         with open(args.output, "w", encoding="utf-8") as f:
