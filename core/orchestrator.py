@@ -7,6 +7,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from core.models import Finding, CheckStatus, Severity, AuditSession
 from core.standards import enrich_findings
+from core.regulatory import enrich_regulatory_findings, build_regulatory_summary, load_regulatory_catalog
 from engines.static.recon_engine import ReconEngine
 from engines.static.crypto_auth_engine import CryptoAuthEngine
 from engines.static.network_platform_engine import NetworkPlatformEngine
@@ -24,6 +25,7 @@ from engines.static.advanced_static_engine import AdvancedStaticEngine
 from engines.static.metadata_extractor import APKMetadataExtractor
 from engines.static.permission_engine import PermissionAnalyzer
 from engines.static.modern_android_engine import ModernAndroidAnalysisEngine
+from engines.static.indian_regulatory_engine import IndianRegulatoryStaticEngine
 
 
 class TIROrchestrator:
@@ -65,6 +67,7 @@ class TIROrchestrator:
         self.meta_extractor = APKMetadataExtractor(apk_path)
         self.perm_analyzer = PermissionAnalyzer(manifest_str)
         self.modern_android = ModernAndroidAnalysisEngine(apk_path)
+        self.indian_regulatory = IndianRegulatoryStaticEngine(apk_path)
         self.dynamic_targets: Dict[str, Any] = {}
 
     @staticmethod
@@ -207,9 +210,11 @@ class TIROrchestrator:
         # Modern APK checks produce both findings and static-to-dynamic targets.
         modern_findings, self.dynamic_targets = self.modern_android.audit()
         findings.extend(modern_findings)
+        findings.extend(self.indian_regulatory.audit())
 
         # Attach versioned OWASP mappings where the rule catalog has an exact entry.
         findings = enrich_findings(findings)
+        findings = enrich_regulatory_findings(findings)
 
         # Filter duplicates before returning.
         return self.deduplicate_findings(findings)
@@ -270,6 +275,8 @@ class TIROrchestrator:
             session=session,
             counts=counts,
             roadmap=roadmap,
+            regulatory_summary=build_regulatory_summary(session.findings),
+            regulatory_disclaimer=load_regulatory_catalog().get("disclaimer"),
             tool_version="TIR Auditor v2.4-enterprise",
             date=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         )
